@@ -1,6 +1,9 @@
 #-*- coding:utf-8 -*-
 
+import tkinter as tk
+import tkinter.ttk as ttk
 from tkinter import *
+from tkinter.ttk import *
 from tkinter import messagebox
 
 class Application(Frame):
@@ -10,13 +13,14 @@ class Application(Frame):
         super().__init__(master)
         self.master = master
         self.pack()
-
+        self.master.update()
+        print('当前窗口1：', self.master.winfo_width(), 'x', self.master.winfo_height())
         self.createState()
         self.createWidget()
 
     # 创建静态数据
     def createState(self):
-        pass
+        self.pwFlag=False
 
     # 创建组件
     def createWidget(self):
@@ -95,10 +99,73 @@ class Application(Frame):
         # 将菜单添加到主窗口
         self.master.config(menu=menubar)
 
+        # 设计界面和组件
+        # 划分面板上下2个面板，设置状态栏
+        self.pw = tk.PanedWindow(root, height=150, orient='vertical', sashrelief='sunken')
+        self.pw.pack(fill='both', expand=1)
+        self.p1 = tk.PanedWindow(self.pw, orient='horizontal', sashrelief='sunken')
+        self.pw.add(self.p1)
+        self.top_frame=ttk.Frame(self.p1, height=150, relief='flat')
+        self.p1.add(self.top_frame)
+
+        self.p2 = tk.PanedWindow(self.pw, orient='horizontal', sashrelief='sunken')
+        self.left_frame, self.right_frame = \
+            ttk.Frame(self.p2, width=int(self.master.winfo_width()/2), relief='flat'), \
+            ttk.Frame(self.p2, height=300, relief='flat')
+
+        # 设置状态栏
+        Separator(root).pack(fill='x', padx=5)
+        status_frame = Frame(root, relief='raised').pack(fill='x')
+        Label(status_frame, text='状态栏').pack(side='left', fill='x')
+        ttk.Sizegrip(status_frame).pack(anchor='ne')
+
+        # 添加组件
+        Label(self.top_frame, text='图片路径:', font=('幼圆', 13)).pack(side='left', padx=5, pady=30)
+        self.pathEntry = Entry(self.top_frame, width=45, font=('黑体', 11))
+        self.pathEntry.pack(side='left', padx=5)
+
+        self.startBtn = tk.Button(self.top_frame, width=8, text='开始识别', font=('幼圆', 13))
+        self.startBtn.pack(side='left', padx=10)
+        self.grabBtn = tk.Button(self.top_frame, width=10, text='截图并识别', font=('幼圆', 13))
+        self.grabBtn.pack(side='left', padx=5)
+
+        #组件绑定事件
+        self.startBtn.bind('<Button-1>', self.start)
+        self.grabBtn.bind('<Button-1>', self.grabStart)
+
+    # 事件和函数
+    def chgPw(self):
+        if not self.pwFlag:
+            self.master.geometry('700x500')
+            self.startBtn['text'] = '重置'
+            self.grabBtn.pack_forget()
+            self.pw['height'] = 450
+            self.pw.add(self.p2)
+            self.p2.add(self.left_frame), self.p2.add(self.right_frame)
+        else:
+            self.master.geometry('700x200')
+            self.startBtn['text'] = '开始识别'
+            self.grabBtn.pack(side='left', padx=5)
+            self.pw['height'] = 150
+            self.pw.forget(self.p2)
+        self.pwFlag = not self.pwFlag
+        self.master.update()
+        print('ok,当前窗口2：', self.master.winfo_width(), 'x', self.master.winfo_height())
+
+    # 1.[开始识别]按钮的事件
+    def start(self, event):
+        # 分割面板2
+        self.chgPw()
+
+
+    # 2.[截图并识别]按钮的事件
+    def grabStart(self, event):
+        self.chgPw()
 
 if __name__ == '__main__':
     root = Tk()
     root.title('图片文字识别程序')
-    root.geometry('650x550+200+160')
+    root.geometry('700x200+200+160')
     app = Application(master=root)
+    root.update()
     root.mainloop()
