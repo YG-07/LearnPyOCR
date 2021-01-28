@@ -21,6 +21,7 @@ class Application(Frame):
     # 创建静态数据
     def createState(self):
         self.pwFlag=False
+        self.p2Flag=False
 
     # 创建组件
     def createWidget(self):
@@ -66,14 +67,14 @@ class Application(Frame):
         # 4.1二级菜单[切换翻译语言]
         self.lang = IntVar()
         self.lang.set(1)
-        mLang = Menu(self, tearoff=0)
-        mLang.add_radiobutton(label='中->英', value=1, variable=self.lang, command='')
-        mLang.add_radiobutton(label='中->日', value=2, variable=self.lang, command='')
-        mLang.add_radiobutton(label='英->中', value=3, variable=self.lang, command='')
-        mLang.add_radiobutton(label='英->日', value=4, variable=self.lang, command='')
-        mLang.add_radiobutton(label='日->中', value=5, variable=self.lang, command='')
-        mLang.add_radiobutton(label='日->英', value=6, variable=self.lang, command='')
-        mTool.add_cascade(label='切换翻译语言', menu=mLang)
+        self.mLang = Menu(self, tearoff=0)
+        self.mLang.add_radiobutton(label='中->英', value=1, variable=self.lang, command='')
+        self.mLang.add_radiobutton(label='中->日', value=2, variable=self.lang, command='')
+        self.mLang.add_radiobutton(label='英->中', value=3, variable=self.lang, command='')
+        self.mLang.add_radiobutton(label='英->日', value=4, variable=self.lang, command='')
+        self.mLang.add_radiobutton(label='日->中', value=5, variable=self.lang, command='')
+        self.mLang.add_radiobutton(label='日->英', value=6, variable=self.lang, command='')
+        mTool.add_cascade(label='切换翻译语言', menu=self.mLang)
         # 4.2 二级菜单[切换翻译网站]
         self.web = IntVar()
         self.web.set(1)
@@ -101,7 +102,7 @@ class Application(Frame):
 
         # 设计界面和组件
         # 划分面板上下2个面板，设置状态栏
-        self.pw = tk.PanedWindow(root, height=150, orient='vertical', sashrelief='sunken')
+        self.pw = tk.PanedWindow(self.master, height=150, orient='vertical', sashrelief='sunken')
         self.pw.pack(fill='both', expand=1)
         self.p1 = tk.PanedWindow(self.pw, orient='horizontal', sashrelief='sunken')
         self.pw.add(self.p1)
@@ -109,39 +110,93 @@ class Application(Frame):
         self.p1.add(self.top_frame)
 
         self.p2 = tk.PanedWindow(self.pw, orient='horizontal', sashrelief='sunken')
-        self.left_frame, self.right_frame = \
-            ttk.Frame(self.p2, width=int(self.master.winfo_width()/2), relief='flat'), \
-            ttk.Frame(self.p2, height=300, relief='flat')
+        self.left_frame = ttk.Frame(self.p2, height=300, relief='flat')
+        self.right_frame = ttk.Frame(self.p2, width=int(self.master.winfo_width()/2), relief='flat')
 
         # 设置状态栏
-        Separator(root).pack(fill='x', padx=5)
-        status_frame = Frame(root, relief='raised').pack(fill='x')
+        Separator(self.master).pack(fill='x', padx=5)
+        status_frame = Frame(self.master, relief='raised').pack(fill='x')
         Label(status_frame, text='状态栏').pack(side='left', fill='x')
         ttk.Sizegrip(status_frame).pack(anchor='ne')
 
         # 添加组件
+        # 面板1的4个组件
         Label(self.top_frame, text='图片路径:', font=('幼圆', 13)).pack(side='left', padx=5, pady=30)
-        self.pathEntry = Entry(self.top_frame, width=45, font=('黑体', 11))
-        self.pathEntry.pack(side='left', padx=5)
-
+        self.pathEntry = Entry(self.top_frame, width=42, font=('黑体', 11))
+        self.pathEntry.pack(side='left', padx=2)
         self.startBtn = tk.Button(self.top_frame, width=8, text='开始识别', font=('幼圆', 13))
         self.startBtn.pack(side='left', padx=10)
-        self.grabBtn = tk.Button(self.top_frame, width=10, text='截图并识别', font=('幼圆', 13))
+        self.grabBtn = tk.Button(self.top_frame, width=14, text='截图并识别(F2)', font=('幼圆', 13))
         self.grabBtn.pack(side='left', padx=5)
+
+        # 面板2的[左框架]组件
+        self.editImgBtn = tk.Button(self.left_frame, width=8, text='编辑图片', font=('幼圆', 12))
+        self.editImgBtn.grid(row=0, column=0, sticky='nw')
+        self.formatBtn = tk.Button(self.left_frame, width=6, text='格式化', font=('幼圆', 12))
+        self.formatBtn.grid(row=0, column=1, sticky='nw')
+        self.chgOcrBtn = tk.Button(self.left_frame, width=12, text='切换识别语言', font=('幼圆', 12))
+        self.chgOcrBtn.grid(row=0, column=2, sticky='nw')
+        self.transBtn = tk.Button(self.left_frame, width=12, text='一键翻译(F3)', font=('幼圆', 12))
+        self.transBtn.grid(row=0, column=3, sticky='nw')
+        self.showBtn = tk.Button(self.left_frame, width=4, text='展开', font=('幼圆', 12))
+        self.showBtn.grid(row=0, column=4, columnspan=2, sticky='nw')
+
+        # 文本区1和滚动条，双向绑定
+        self.T1 = Text(self.left_frame, width=82, font=('宋体', 12))
+        self.t1Bar = ttk.Scrollbar(self.left_frame)
+        self.T1.config(yscrollcommand=self.t1Bar.set)
+        self.t1Bar.config(command=self.T1.yview)
+        self.T1.grid(pady=5, padx=5, row=1, column=0, columnspan=5)
+        self.t1Bar.grid(row=1, column=5, sticky='ns')
+
+
+
+        # 面板2的[右框架]组件
+        Label(self.right_frame, text='切换语言:', font=('幼圆', 12)).grid(pady=2,row=0, column=0, sticky='nw')
+        self.menuBtn = tk.Menubutton(self.right_frame, text='中->英', font=('幼圆', 12))
+        self.mbMenu = Menu(self.menuBtn, tearoff=0)
+        self.mbMenu.add_radiobutton(label='中->英', value=1, variable=self.lang, command='')
+        self.mbMenu.add_radiobutton(label='中->日', value=2, variable=self.lang, command='')
+        self.mbMenu.add_radiobutton(label='英->中', value=3, variable=self.lang, command='')
+        self.mbMenu.add_radiobutton(label='英->日', value=4, variable=self.lang, command='')
+        self.mbMenu.add_radiobutton(label='日->中', value=5, variable=self.lang, command='')
+        self.mbMenu.add_radiobutton(label='日->英', value=6, variable=self.lang, command='')
+        self.menuBtn.config(menu=self.mbMenu)
+        self.menuBtn.grid(row=0, column=1, sticky='nw')
+
+        Label(self.right_frame, text='切换翻译网站:', font=('幼圆', 12)).grid(pady=2,row=0, column=2, sticky='nw')
+        self.menuBtn2 = tk.Menubutton(self.right_frame, text='百度', font=('幼圆', 12))
+        self.mbMenu2 = Menu(self.menuBtn2, tearoff=0)
+        self.mbMenu2.add_radiobutton(label='百度', value=1, variable=self.web, command='')
+        self.mbMenu2.add_radiobutton(label='有道', value=2, variable=self.web, command='')
+        self.menuBtn2.config(menu=self.mbMenu2)
+        self.menuBtn2.grid(row=0, column=3, sticky='nw')
+        self.webLabel = tk.Label(self.right_frame, text='百度翻译', font=('幼圆', 12), fg='blue')
+        self.webLabel.grid(pady=2,row=0, column=4, columnspan=2, sticky='nw')
+
+        # 文本区2和滚动条，双向绑定
+        self.T2 = Text(self.right_frame, width=52, font=('宋体', 12))
+        self.t2Bar = ttk.Scrollbar(self.right_frame)
+        self.T2.config(yscrollcommand=self.t2Bar.set)
+        self.t2Bar.config(command=self.T2.yview)
+        self.T2.grid(pady=5, padx=5, row=1, columnspan=5, sticky='we')
+        self.t2Bar.grid(row=1, column=5, sticky='ns')
 
         #组件绑定事件
         self.startBtn.bind('<Button-1>', self.start)
         self.grabBtn.bind('<Button-1>', self.grabStart)
+        self.showBtn.bind('<Button-1>', self.chgP2)
 
     # 事件和函数
+    # 分割主面板pw
     def chgPw(self):
         if not self.pwFlag:
-            self.master.geometry('700x500')
+            self.master.geometry('700x550')
             self.startBtn['text'] = '重置'
             self.grabBtn.pack_forget()
             self.pw['height'] = 450
             self.pw.add(self.p2)
-            self.p2.add(self.left_frame), self.p2.add(self.right_frame)
+            self.p2.add(self.left_frame)
         else:
             self.master.geometry('700x200')
             self.startBtn['text'] = '开始识别'
@@ -152,9 +207,26 @@ class Application(Frame):
         self.master.update()
         print('ok,当前窗口2：', self.master.winfo_width(), 'x', self.master.winfo_height())
 
+    # 分割2面板p2
+    def chgP2(self, event):
+        if not self.p2Flag:
+            self.master.geometry('910x550')
+            self.T1['width'] = 52
+            self.showBtn['text'] = '收起'
+            self.p2.forget(self.left_frame)
+            self.left_frame['width']=450
+            self.p2.add(self.left_frame)
+            self.p2.add(self.right_frame)
+        else:
+            self.master.geometry('700x550')
+            self.T1['width'] = 82
+            self.showBtn['text'] = '展开'
+            self.p2.forget(self.right_frame)
+        self.p2Flag = not self.p2Flag
+        self.master.update()
+
     # 1.[开始识别]按钮的事件
     def start(self, event):
-        # 分割面板2
         self.chgPw()
 
 
