@@ -22,6 +22,9 @@ class Application(Frame):
     def createState(self):
         self.pwFlag=False
         self.p2Flag=False
+        self.fxw=82*12
+        self.fxw2=52*12
+        self.fxh=24*12
 
     # 创建组件
     def createWidget(self):
@@ -43,14 +46,14 @@ class Application(Frame):
         menubar.add_cascade(label='帮助(H)', menu=mHelp)
 
         # 1.添加[文件]的子菜单项
-        mFile.add_command(label='导入图片', accelerator='Ctrl+N', command='')
-        mFile.add_command(label='导入文本', accelerator='Ctrl+O', command='')
+        mFile.add_command(label='导入图片', accelerator='Ctrl+N', command=self.openImg)
+        mFile.add_command(label='导入文本', accelerator='Ctrl+O', command=self.openTxt)
         mFile.add_separator()
-        mFile.add_command(label='保存识别文本', accelerator='Ctrl+1', command='')
-        mFile.add_command(label='保存翻译文本', accelerator='Ctrl+2', command='')
+        mFile.add_command(label='保存识别文本', accelerator='Ctrl+F1', command='')
+        mFile.add_command(label='保存翻译文本', accelerator='Ctrl+F2', command='')
         mFile.add_command(label='保存全部', accelerator='Ctrl+S', command='')
         mFile.add_separator()
-        mFile.add_command(label='重置', accelerator='Ctrl+R', command='')
+        mFile.add_command(label='重启', accelerator='Ctrl+R', command='')
         mFile.add_command(label='退出', accelerator='Alt+F4', command='')
 
         # 2.添加[编辑]的子菜单项
@@ -95,7 +98,7 @@ class Application(Frame):
         mHelp.add_command(label='下载扩展语言识别包', command='')
         mHelp.add_separator()
         mHelp.add_command(label='tessdoc官方文档', command='')
-        mHelp.add_command(label='pytesseract文档', command='')
+        mHelp.add_command(label='pytesseract官方文档', command='')
 
         # 将菜单添加到主窗口
         self.master.config(menu=menubar)
@@ -146,7 +149,7 @@ class Application(Frame):
         self.t1Bar = ttk.Scrollbar(self.left_frame)
         self.T1.config(yscrollcommand=self.t1Bar.set)
         self.t1Bar.config(command=self.T1.yview)
-        self.T1.grid(pady=5, padx=5, row=1, column=0, columnspan=5)
+        self.T1.grid(pady=5, padx=5, row=1, columnspan=5)
         self.t1Bar.grid(row=1, column=5, sticky='ns')
 
 
@@ -179,13 +182,44 @@ class Application(Frame):
         self.t2Bar = ttk.Scrollbar(self.right_frame)
         self.T2.config(yscrollcommand=self.t2Bar.set)
         self.t2Bar.config(command=self.T2.yview)
-        self.T2.grid(pady=5, padx=5, row=1, columnspan=5, sticky='we')
+        self.T2.grid(pady=5, padx=5, row=1, columnspan=5)
         self.t2Bar.grid(row=1, column=5, sticky='ns')
 
-        #组件绑定事件
+        # 组件绑定事件
         self.startBtn.bind('<Button-1>', self.start)
         self.grabBtn.bind('<Button-1>', self.grabStart)
         self.showBtn.bind('<Button-1>', self.chgP2)
+
+        # 全局监听快捷键
+        # 1.[文件]菜单
+        self.master.bind('<Control-n>', lambda event: self.openImg(event))
+        self.master.bind('<Control-o>', lambda event: self.openTxt(event))
+        self.master.bind('<Control-F1>', lambda event: self.saveT1(event))
+        self.master.bind('<Control-F2>', lambda event: self.saveT2(event))
+        self.master.bind('<Control-s>', lambda event: self.saveTxt(event))
+        self.master.bind('<Control-r>', lambda event: self.resetApp(event))
+
+        # 2.[编辑]菜单
+        self.master.bind('<Control-m>', lambda event: self.editImg(event))
+        self.master.bind('<Control-t>', lambda event: self.editTxt(event))
+
+        # 3.[格式]菜单
+        self.master.bind('<Control-d>', lambda event: self.fontTxt(event))
+        self.master.bind('<Control-f>', lambda event: self.formatTxt(event))
+
+        # 4.[工具]菜单
+        self.master.bind('<KeyPress-F2>', lambda event: self.grabImg(event))
+        self.master.bind('<KeyPress-F3>', lambda event: self.trans(event))
+
+        # 5.[帮助]菜单
+        self.master.bind('<Control-h>', lambda event: self.about(event))
+
+        # 隐藏快捷键
+        # T1、T2字体快捷键
+        self.T1.bind('<Control-plus>', lambda event: self.chgFont(event,True))
+        self.T1.bind('<Control-minus>', lambda event: self.chgFont(event,False))
+        self.T2.bind('<Control-plus>', lambda event: self.chgFont(event,True))
+        self.T2.bind('<Control-minus>', lambda event: self.chgFont(event,False))
 
     # 事件和函数
     # 分割主面板pw
@@ -209,6 +243,8 @@ class Application(Frame):
 
     # 分割2面板p2
     def chgP2(self, event):
+        resfont = self.T1['font'].split(' ')
+        tmp = int(resfont[1])
         if not self.p2Flag:
             self.master.geometry('910x550')
             self.T1['width'] = 52
@@ -217,11 +253,14 @@ class Application(Frame):
             self.left_frame['width']=450
             self.p2.add(self.left_frame)
             self.p2.add(self.right_frame)
+            self.T1['width'] = int(self.fxw2 / tmp) - 2
         else:
             self.master.geometry('700x550')
             self.T1['width'] = 82
             self.showBtn['text'] = '展开'
             self.p2.forget(self.right_frame)
+            self.T1['width'] = int(self.fxw / tmp) - 2
+            self.T1['height'] = int(self.fxh / tmp)
         self.p2Flag = not self.p2Flag
         self.master.update()
 
@@ -229,10 +268,139 @@ class Application(Frame):
     def start(self, event):
         self.chgPw()
 
-
     # 2.[截图并识别]按钮的事件
     def grabStart(self, event):
         self.chgPw()
+
+    # 快捷键和菜单事件处理函数
+    # 1.[文件]菜单
+    # 1.导入图片
+    def openImg(self, event=None):
+        print('导入图片')
+
+    # 2.打开文本
+    def openTxt(self, event=None):
+        print('打开文本')
+
+    # 3.保存识别文本
+    def saveT1(self, event):
+        print('保存识别文本')
+
+    # 4.保存翻译文本
+    def saveT2(self, event):
+        print('保存翻译文本')
+
+    # 5.保存合并2个文本
+    def saveTxt(self, event):
+        print('保存合并2个文本')
+
+    # 6.重启
+    def resetApp(self, event):
+        print('重启')
+
+    # 2.[编辑]菜单
+    # 1.编辑图片
+    def editImg(self, event):
+        print('编辑图片')
+
+    # 2.编辑文本
+    def editTxt(self, event):
+        print('编辑文本')
+
+    # 3.打开图片地址
+    def openImgPath(self, event):
+        print('打开图片地址')
+
+    # 4.打开文本地址
+    def openTxtPath(self, event):
+        print('打开文本地址')
+
+    # 3.[格式]菜单
+    # 1.字体
+    def fontTxt(self, event):
+        print('字体')
+
+    # 2.格式化
+    def formatTxt(self, event):
+        print('格式化')
+
+    # 4.[工具]菜单
+    # 1.切换识别语言
+    def chgOcr(self, event):
+        print('切换识别语言')
+
+    # 2.添加识别语言
+    def addOcr(self, event):
+        print('添加识别语言')
+
+    # 3.一键截图
+    def grabImg(self, event):
+        print('一键截图')
+
+    # 4.一键翻译
+    def trans(self, event):
+        print('一键翻译')
+
+    # 5.打开翻译网站
+    def openWeb(self, event):
+        print('打开翻译网站')
+
+    # 6.切换语言
+    def chgLang(self, event):
+        print('切换语言')
+
+    # 7.切换网站
+    def chgWeb(self, event):
+        print('切换网站')
+
+    # 5.[帮助]菜单
+    # 1.关于
+    def about(self, event):
+        print('关于')
+
+    # 2.打开OCR目录
+    def openOcrPath(self, event):
+        print('打开OCR目录')
+
+    # 3.下载扩展语言识别包
+    def openOcrWeb(self, event):
+        print('下载扩展语言识别包')
+
+    # 4.打开tessdoc官方文档
+    def openTessWeb(self, event):
+        print('打开tessdoc官方文档')
+
+    # 5.打开pytessract官方文档
+    def openPyTessWeb(self, event):
+        print('打开pytessract官方文档')
+
+    # 其他快捷键事件处理函数
+    # 1.文本域的字体+-
+    def chgFont(self, event, bool, dlt=1):
+        print(event)
+        resfont = event.widget['font'].split(' ')
+        tmp = int(resfont[1])
+        if bool:
+            if(tmp+dlt<=30):
+                tmp+=dlt
+            else:
+                tmp=30
+        else:
+            if(tmp-dlt>=10):
+                tmp-=dlt
+            else:
+                tmp=10
+        resfont[1] = str(tmp)
+        resfont = ' '.join(resfont)
+        event.widget['font'] = resfont
+        tw = event.widget['height']
+        print(tw)
+        if self.p2Flag:
+            event.widget['width'] = int(self.fxw2 / tmp) - 2
+        else:
+            event.widget['width'] = int(self.fxw / tmp) - 2
+        event.widget['height'] = int(self.fxh / tmp)
+        # 推理：文本域动态宽度 82*12=fxw   ?*13=fxw    ?*14=fxw
 
 if __name__ == '__main__':
     root = Tk()
