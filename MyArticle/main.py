@@ -7,6 +7,11 @@ from tkinter.ttk import *
 from tkinter import messagebox
 import os
 
+import time
+from selenium import webdriver
+from urllib import parse
+
+
 
 class Application(Frame):
     # 一个经典的GUI程序
@@ -34,6 +39,8 @@ class Application(Frame):
         self.langTxt=['','中->英','中->日','英->中','英->日','日->中','日->英']
         self.ocrTxt=['','中文(简体)','英文','日文','中文(繁)']
         self.webTxt=['','百度','有道']
+        # 翻译对照
+        self.baiduTrans={'中':'zh', '英':'en', '日':'jp'}
 
         # 字体
         self.f1='幼圆 13'
@@ -48,12 +55,15 @@ class Application(Frame):
 
         # 路径和网站
         # 翻译网站
-        self.transUrl=['','https://fanyi.baidu.com/?aldtype=16047#auto/zh','http://fanyi.youdao.com/']
+        self.transUrl=['','https://fanyi.baidu.com/','http://fanyi.youdao.com/']
         # [帮助]菜单
         self.tessPath=self.splitPath('where tesseract')
         self.downOcrUrl='https://github.com/tesseract-ocr/tessdata_fast'
         self.tessdocUrl='https://tesseract-ocr.github.io/tessdoc/'
         self.pytessUrl='https://pypi.org/project/pytesseract/'
+
+        # 爬虫相关
+        self.driver = webdriver.PhantomJS(executable_path='./phantomjs.exe')
 
     # 创建组件
     def createWidget(self):
@@ -115,18 +125,18 @@ class Application(Frame):
         mWeb.add_radiobutton(label='有道翻译', value=2, variable=self.web, command=self.chgWeb)
         mTool.add_cascade(label='切换翻译网站', menu=mWeb)
         mTool.add_command(label='一键截图', accelerator='F2', command='')
-        mTool.add_command(label='一键翻译', accelerator='F3', command='')
+        mTool.add_command(label='一键翻译', accelerator='F3', command=self.trans)
         mTool.add_separator()
-        mTool.add_command(label='切换识别语言', command='')
 
         self.ocr = IntVar()
         self.ocr.set(1)
         self.mOcr = Menu(self, tearoff=0)
-        self.mOcr.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command='')
-        self.mOcr.add_radiobutton(label='英文', value=2, variable=self.ocr, command='')
-        self.mOcr.add_radiobutton(label='日文', value=3, variable=self.ocr, command='')
-        self.mOcr.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command='')
+        self.mOcr.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command=self.chgOcr)
+        self.mOcr.add_radiobutton(label='英文', value=2, variable=self.ocr, command=self.chgOcr)
+        self.mOcr.add_radiobutton(label='日文', value=3, variable=self.ocr, command=self.chgOcr)
+        self.mOcr.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command=self.chgOcr)
         mTool.add_cascade(label='切换识别语言', menu=self.mOcr)
+        mTool.add_command(label='添加识别语言', command='')
 
         # 5.添加[帮助]的子菜单项
         mHelp.add_command(label='关于', accelerator='Ctrl+H', command=self.about)
@@ -177,14 +187,14 @@ class Application(Frame):
 
         self.mOcrMenu = tk.Menubutton(self.left_frame, text='中文(简)', font=self.f2)
         self.mOcrRad = Menu(self.mOcrMenu, tearoff=0)
-        self.mOcrRad.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command='')
-        self.mOcrRad.add_radiobutton(label='英文', value=2, variable=self.ocr, command='')
-        self.mOcrRad.add_radiobutton(label='日文', value=3, variable=self.ocr, command='')
-        self.mOcrRad.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command='')
+        self.mOcrRad.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command=self.chgOcr)
+        self.mOcrRad.add_radiobutton(label='英文', value=2, variable=self.ocr, command=self.chgOcr)
+        self.mOcrRad.add_radiobutton(label='日文', value=3, variable=self.ocr, command=self.chgOcr)
+        self.mOcrRad.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command=self.chgOcr)
         self.mOcrMenu.config(menu=self.mOcrRad)
         self.mOcrMenu.grid(row=0, column=2, sticky='nw')
 
-        self.transBtn = tk.Button(self.left_frame, width=12, text='一键翻译(F3)', font=self.f2)
+        self.transBtn = tk.Button(self.left_frame, width=12, text='一键翻译(F3)', font=self.f2, command=self.trans)
         self.transBtn.grid(row=0, column=3, sticky='nw')
         self.showBtn = tk.Button(self.left_frame, width=4, text='展开', font=self.f2)
         self.showBtn.grid(row=0, column=4, columnspan=2, sticky='nw')
@@ -270,7 +280,7 @@ class Application(Frame):
 
     # 事件和函数
     # 分割主面板pw
-    def chgPw(self):
+    def chgPw(self, event=None):
         if not self.pwFlag:
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hp2))
             self.master.minsize(self.wmin, self.hp2)
@@ -279,7 +289,7 @@ class Application(Frame):
             self.pw['height'] = 450
             self.pw.add(self.p2)
             self.p2.add(self.left_frame)
-        else:
+        elif self.pwFlag:
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hmin))
             self.master.minsize(self.wmin, self.hmin)
             self.startBtn['text'] = '导入并识别'
@@ -291,7 +301,7 @@ class Application(Frame):
         print('ok,当前窗口2：', self.master.winfo_width(), 'x', self.master.winfo_height())
 
     # 分割2面板p2
-    def chgP2(self, event):
+    def chgP2(self, event=None):
         resfont = self.T1['font'].split(' ')
         tmp = int(resfont[1])
         if not self.p2Flag:
@@ -316,8 +326,9 @@ class Application(Frame):
         self.master.update()
 
     # 1.[开始识别]按钮的事件
-    def start(self, event):
+    def start(self, event=None):
         self.chgPw()
+        self.T1.insert(1.0, '大家好')
 
     # 2.[截图并识别]按钮的事件
     def grabStart(self, event):
@@ -334,80 +345,102 @@ class Application(Frame):
         print('打开文本')
 
     # 3.保存识别文本
-    def saveT1(self, event):
+    def saveT1(self, event=None):
         print('保存识别文本')
 
     # 4.保存翻译文本
-    def saveT2(self, event):
+    def saveT2(self, event=None):
         print('保存翻译文本')
 
     # 5.保存合并2个文本
-    def saveTxt(self, event):
+    def saveTxt(self, event=None):
         print('保存合并2个文本')
 
     # 6.重启
-    def resetApp(self, event):
+    def resetApp(self, event=None):
         print('重启')
 
     # 2.[编辑]菜单
     # 1.编辑图片
-    def editImg(self, event):
+    def editImg(self, event=None):
         print('编辑图片')
 
     # 2.编辑文本
-    def editTxt(self, event):
+    def editTxt(self, event=None):
         print('编辑文本')
 
     # 3.打开图片地址
-    def openImgPath(self, event):
+    def openImgPath(self, event=None):
         print('打开图片地址')
 
     # 4.打开文本地址
-    def openTxtPath(self, event):
+    def openTxtPath(self, event=None):
         print('打开文本地址')
 
     # 3.[格式]菜单
     # 1.字体
-    def fontTxt(self, event):
+    def fontTxt(self, event=None):
         print('字体')
 
     # 2.格式化
-    def formatTxt(self, event):
+    def formatTxt(self, event=None):
         print('格式化')
 
     # 4.[工具]菜单
     # 1.切换识别语言
-    def chgOcr(self, event):
-        print('切换识别语言')
+    def chgOcr(self, event=None):
+        self.mOcrMenu['text'] = self.ocrTxt[self.ocr.get()]
 
     # 2.添加识别语言
     def addOcr(self, event):
         print('添加识别语言')
+        # askopenfilename
 
     # 3.一键截图
-    def grabImg(self, event):
-        print('一键截图')
+    def grabImg(self, event=None):
+        if (self.pwFlag==False) and (self.p2Flag==False):
+            print('一键截图')
 
     # 4.一键翻译
-    def trans(self, event):
+    def transMain(self, event=None):
         print('一键翻译')
+        txt = self.T1.get(1.0, END)
+        txt.replace('\n', '')
+        ll = self.langTxt[self.lang.get()]
+        (l1, l2) = ll.split('->')
+        print(txt, self.baiduTrans[l1], self.baiduTrans[l2])
+        url = self.transUrl[self.web.get()] + '#{0}/{1}/{2}'.format(self.baiduTrans[l1], self.baiduTrans[l2],
+                                                                    parse.quote(txt))
+        print(url)
+        self.driver.get(url)
+        time.sleep(1)
+        self.driver.save_screenshot("trans.png")
+        finds = self.driver.find_elements_by_xpath('//*[@class="output-bd"]/p/span')
+        word = ''
+        for item in finds:
+            word += item.text + '\n'
+        self.T2.delete(1.0, END)
+        self.T2.insert(1.0, word)
 
-    # 5.打开翻译网站
-    def openWeb(self, event):
-        print('打开翻译网站')
+    def trans(self, event=None):
+        if self.pwFlag:
+            if self.p2Flag == False:
+                self.chgP2()
+            self.transMain()
 
-    # 6.切换语言
+
+    # 5.切换语言
     def chgLang(self, event=None):
         # print('切换语言',self.langTxt[self.lang.get()])
         self.mLangMenu['text']=self.langTxt[self.lang.get()]
 
 
-    # 7.切换网站
+    # 6.切换网站
     def chgWeb(self, event=None):
         self.mWebMenu['text'] = self.webTxt[self.web.get()]
         self.webLabel['text'] = self.webTxt[self.web.get()]+'翻译'
 
-    # 8.打开翻译网站
+    # 7.打开翻译网站
     def openTransUrl(self, event=None):
         os.startfile(self.transUrl[self.web.get()])
 
