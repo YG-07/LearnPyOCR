@@ -12,6 +12,7 @@ class Application(Frame):
         #super()是父类的构造器
         super().__init__(master)
         self.master = master
+        self.master.minsize(700,200)
         self.pack()
         self.master.update()
         print('当前窗口1：', self.master.winfo_width(), 'x', self.master.winfo_height())
@@ -92,7 +93,7 @@ class Application(Frame):
         mTool.add_command(label='添加识别语言', command='')
 
         # 5.添加[帮助]的子菜单项
-        mHelp.add_command(label='关于', accelerator='Ctrl+H', command='')
+        mHelp.add_command(label='关于', accelerator='Ctrl+H', command=self.about)
         mHelp.add_separator()
         mHelp.add_command(label='打开OCR安装目录', command='')
         mHelp.add_command(label='下载扩展语言识别包', command='')
@@ -226,6 +227,7 @@ class Application(Frame):
     def chgPw(self):
         if not self.pwFlag:
             self.master.geometry('700x550')
+            self.master.minsize(700, 550)
             self.startBtn['text'] = '重置'
             self.grabBtn.pack_forget()
             self.pw['height'] = 450
@@ -233,6 +235,7 @@ class Application(Frame):
             self.p2.add(self.left_frame)
         else:
             self.master.geometry('700x200')
+            self.master.minsize(700, 200)
             self.startBtn['text'] = '开始识别'
             self.grabBtn.pack(side='left', padx=5)
             self.pw['height'] = 150
@@ -247,6 +250,7 @@ class Application(Frame):
         tmp = int(resfont[1])
         if not self.p2Flag:
             self.master.geometry('910x550')
+            self.master.minsize(910, 550)
             self.T1['width'] = 52
             self.showBtn['text'] = '收起'
             self.p2.forget(self.left_frame)
@@ -256,6 +260,7 @@ class Application(Frame):
             self.T1['width'] = int(self.fxw2 / tmp) - 2
         else:
             self.master.geometry('700x550')
+            self.master.minsize(700, 550)
             self.T1['width'] = 82
             self.showBtn['text'] = '展开'
             self.p2.forget(self.right_frame)
@@ -355,8 +360,28 @@ class Application(Frame):
 
     # 5.[帮助]菜单
     # 1.关于
-    def about(self, event):
-        print('关于')
+    def about(self, event=None):
+        aboutWin = tk.Toplevel()
+        aboutWin.title('帮助和关于')
+        aboutWin.geometry('400x300+500+200')
+        aboutWin.resizable(0,0)
+        l = tk.Label(aboutWin, text='Python的图片文字识别的Tkinter程序', font=('微软雅黑',16))
+        l.pack(anchor='w',padx=20, pady=10)
+        Separator(aboutWin).pack(fill='x', padx=5)
+        aboutTxt = '这是关于内容\n' \
+                   '哈哈哈'
+        helpTxt = '这是帮助内容\n' \
+                  '喵喵喵\n' \
+                  '嘤嘤嘤\n'
+        tk.Label(aboutWin, text='关于', font=('微软雅黑',13)).pack(anchor='w',padx=40, pady=5)
+        aboutLabel = tk.Label(aboutWin, text=aboutTxt, font=('宋体',11), justify='left')
+        aboutLabel.pack(anchor='w',padx=50)
+        tk.Label(aboutWin, text='帮助', font=('微软雅黑', 13)).pack(anchor='w', padx=40, pady=5)
+        helpLabel = tk.Label(aboutWin, text=helpTxt, font=('宋体', 11), justify='left')
+        helpLabel.pack(anchor='w',padx=50)
+        tk.Label(aboutWin, text='Copyright © 2020-2021 Siwei Du. All rights reserved.', font=('黑体', 10)).pack(anchor='s', pady=20)
+        aboutWin.mainloop()
+
 
     # 2.打开OCR目录
     def openOcrPath(self, event):
