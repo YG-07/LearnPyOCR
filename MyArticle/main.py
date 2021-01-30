@@ -3,9 +3,12 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import *
+from tkinter.filedialog import askopenfilename
 from tkinter.ttk import *
 from tkinter import messagebox
+
 import os
+import  shutil
 
 import time
 from selenium import webdriver
@@ -42,6 +45,8 @@ class Application(Frame):
         # 翻译对照
         self.baiduTrans={'中':'zh', '英':'en', '日':'jp'}
         self.youdaoTrans=['', 2, 4, 3, 3, 5, 5]
+        # 根据遍历ocr名生成标签
+        self.ocrFor={'chi_sim':'中文(简体)','eng':'英文','jpn':'日文','chi_tra':'中文(繁)'}
 
         # 字体
         self.f1='幼圆 13'
@@ -59,7 +64,11 @@ class Application(Frame):
         # 翻译网站
         self.transUrl=['','https://fanyi.baidu.com/','http://fanyi.youdao.com/']
         # [帮助]菜单
+        # ocrdata目录
         self.tessPath=self.splitPath('where tesseract')
+        self.tessDataPath=self.tessPath+'\\tessdata'
+        self.ocrFiles=self.findFile()
+
         self.downOcrUrl='https://github.com/tesseract-ocr/tessdata_fast'
         self.tessdocUrl='https://tesseract-ocr.github.io/tessdoc/'
         self.pytessUrl='https://pypi.org/project/pytesseract/'
@@ -139,7 +148,7 @@ class Application(Frame):
         self.mOcr.add_radiobutton(label='日文', value=3, variable=self.ocr, command=self.chgOcr)
         self.mOcr.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command=self.chgOcr)
         mTool.add_cascade(label='切换识别语言', menu=self.mOcr)
-        mTool.add_command(label='添加识别语言', command='')
+        mTool.add_command(label='添加识别语言', command=self.addOcr)
 
         # 5.添加[帮助]的子菜单项
         mHelp.add_command(label='关于', accelerator='Ctrl+H', command=self.about)
@@ -336,6 +345,13 @@ class Application(Frame):
 
     # 1.[开始识别]按钮的事件
     def start(self, event=None):
+        filename=askopenfilename(title='导入图片或文本文件', filetypes=[('图片文件', '.png','.jpg'),('文本文件', '.txt')])
+        if filename:
+            (dir,file)=os.path.split(filename)
+            (filename,extension)=os.path.splitext(file)
+            print(extension)
+            if extension=='.txt':
+                pass
         self.chgPw()
         self.T1.insert(1.0, '大家好')
 
@@ -347,6 +363,7 @@ class Application(Frame):
     # 1.[文件]菜单
     # 1.导入图片
     def openImg(self, event=None):
+        self.chgPw()
         print('导入图片')
 
     # 2.打开文本
@@ -401,9 +418,25 @@ class Application(Frame):
         self.mOcrMenu['text'] = self.ocrTxt[self.ocr.get()]
 
     # 2.添加识别语言
-    def addOcr(self, event):
+    def addOcr(self, event=None):
         print('添加识别语言')
-        # askopenfilename
+        addPath = askopenfilename(title='添加traineddata文件到tessdata目录', filetypes=[('OCR文件', '.traineddata')])
+        if addPath:
+            filename=addPath.split('/')[-1]
+            dst=self.tessDataPath+'\\'+filename
+            print(addPath, dst)
+            flag=False
+            if os.path.exists(dst):
+                if messagebox.askquestion('信息', filename+'语言包已经存在！是否替换？'):
+                    flag=True
+                    print(flag)
+            else:
+                flag=True
+            if flag:
+                shutil.copyfile(addPath, dst)
+                messagebox.showinfo('信息', '成功添加'+filename+'语言包！')
+
+
 
     # 3.一键截图
     def grabImg(self, event=None):
@@ -516,7 +549,7 @@ class Application(Frame):
 
     # 2.打开OCR目录
     def openOcrPath(self, event=None):
-        print('打开OCR目录')
+        print('打开OCR目录',self.tessPath)
         path = self.tessPath
         os.startfile(path)
 
@@ -533,6 +566,16 @@ class Application(Frame):
         os.startfile(self.pytessUrl)
 
     # 其他快捷键事件处理函数
+    # 1.遍历文件夹，获取指定后缀文件
+    def findFile(self):
+        items = os.listdir(self.tessDataPath)
+        newList=[]
+        for item in items:
+            if item.endswith('.traineddata'):
+                (filename,extension)=os.path.splitext(item)
+                newList.append(filename)
+        print(newList)
+        return newList
     # 1.文本域的字体+-
     def chgFont(self, event, bool, dlt=1):
         print(event)
