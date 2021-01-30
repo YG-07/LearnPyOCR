@@ -41,6 +41,7 @@ class Application(Frame):
         self.webTxt=['','百度','有道']
         # 翻译对照
         self.baiduTrans={'中':'zh', '英':'en', '日':'jp'}
+        self.youdaoTrans=['', 2, 4, 3, 3, 5, 5]
 
         # 字体
         self.f1='幼圆 13'
@@ -52,6 +53,7 @@ class Application(Frame):
         self.fxw=82*12
         self.fxw2=52*12
         self.fxh=24*12
+        self.tipFlag=True
 
         # 路径和网站
         # 翻译网站
@@ -64,6 +66,7 @@ class Application(Frame):
 
         # 爬虫相关
         self.driver = webdriver.PhantomJS(executable_path='./phantomjs.exe')
+
 
     # 创建组件
     def createWidget(self):
@@ -171,13 +174,16 @@ class Application(Frame):
 
         # 添加组件
         # 面板1的4个组件
-        Label(self.top_frame, text='图片路径:', font=self.f1).pack(side='left', padx=5, pady=30)
+        self.showBtn0 = tk.Button(self.top_frame, width=4, text='展开', font=self.f2)
+        self.showBtn0.pack(side='left', padx=2)
+        Label(self.top_frame, text='图片路径:', font=self.f2).pack(side='left', padx=2, pady=30)
         self.pathEntry = Entry(self.top_frame, width=40, font=('黑体', 11))
         self.pathEntry.pack(side='left', padx=2)
-        self.startBtn = tk.Button(self.top_frame, width=10, text='导入并识别', font=self.f1)
-        self.startBtn.pack(side='left', padx=10)
-        self.grabBtn = tk.Button(self.top_frame, width=14, text='截图并识别(F2)', font=self.f1)
-        self.grabBtn.pack(side='left', padx=5)
+        self.startBtn = tk.Button(self.top_frame, width=10, text='导入并识别', font=self.f2)
+        self.startBtn.pack(side='left', padx=5)
+        self.grabBtn = tk.Button(self.top_frame, width=14, text='截图并识别(F2)', font=self.f2)
+        self.grabBtn.pack(side='left', padx=2)
+
 
         # 面板2的[左框架]组件
         self.editImgBtn = tk.Button(self.left_frame, width=8, text='编辑图片', font=self.f2)
@@ -241,6 +247,7 @@ class Application(Frame):
         self.t2Bar.grid(row=1, column=5, sticky='ns')
 
         # 组件绑定事件
+        self.showBtn0.bind('<Button-1>', self.chgPw)
         self.startBtn.bind('<Button-1>', self.start)
         self.grabBtn.bind('<Button-1>', self.grabStart)
         self.showBtn.bind('<Button-1>', self.chgP2)
@@ -285,6 +292,7 @@ class Application(Frame):
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hp2))
             self.master.minsize(self.wmin, self.hp2)
             self.startBtn['text'] = '重置'
+            self.showBtn0['text'] = '收起'
             self.grabBtn.pack_forget()
             self.pw['height'] = 450
             self.pw.add(self.p2)
@@ -293,6 +301,7 @@ class Application(Frame):
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hmin))
             self.master.minsize(self.wmin, self.hmin)
             self.startBtn['text'] = '导入并识别'
+            self.showBtn0['text'] = '展开'
             self.grabBtn.pack(side='left', padx=5)
             self.pw['height'] = 150
             self.pw.forget(self.p2)
@@ -402,20 +411,42 @@ class Application(Frame):
             print('一键截图')
 
     # 4.一键翻译
-    def transMain(self, event=None):
-        print('一键翻译')
+    def baiduTransMain(self, event=None):
+        print('百度翻译')
         txt = self.T1.get(1.0, END)
         txt.replace('\n', '')
         ll = self.langTxt[self.lang.get()]
         (l1, l2) = ll.split('->')
         print(txt, self.baiduTrans[l1], self.baiduTrans[l2])
-        url = self.transUrl[self.web.get()] + '#{0}/{1}/{2}'.format(self.baiduTrans[l1], self.baiduTrans[l2],
-                                                                    parse.quote(txt))
+        url = self.transUrl[self.web.get()] + '#{0}/{1}/{2}'\
+            .format(self.baiduTrans[l1], self.baiduTrans[l2],parse.quote(txt))
         print(url)
         self.driver.get(url)
-        time.sleep(1)
+        time.sleep(0.6)
         self.driver.save_screenshot("trans.png")
         finds = self.driver.find_elements_by_xpath('//*[@class="output-bd"]/p/span')
+        word = ''
+        for item in finds:
+            word += item.text + '\n'
+        self.T2.delete(1.0, END)
+        self.T2.insert(1.0, word)
+
+    def youdaoTransMain(self, event=None):
+        print('有道翻译')
+        txt = self.T1.get(1.0, END)
+        txt.replace('\n', '')
+        self.driver.get(self.transUrl[self.web.get()])
+        time.sleep(0.3)
+        self.driver.find_element_by_xpath('//*[@id="langSelect"]/span').click()
+        time.sleep(0.1)
+        self.driver.find_element_by_xpath('//*[@id="languageSelect"]/li[{0}]/a'.format(self.youdaoTrans[self.lang.get()])).click()
+        time.sleep(0.1)
+        self.driver.find_element_by_id('inputOriginal').send_keys(txt)
+        time.sleep(0.2)
+        self.driver.find_element_by_id('transMachine').click()
+        time.sleep(0.5)
+        self.driver.save_screenshot("trans.png")
+        finds = self.driver.find_elements_by_xpath('//*[@id="transTarget"]/p/span')
         word = ''
         for item in finds:
             word += item.text + '\n'
@@ -426,7 +457,10 @@ class Application(Frame):
         if self.pwFlag:
             if self.p2Flag == False:
                 self.chgP2()
-            self.transMain()
+            if self.web.get()==1:
+                self.baiduTransMain()
+            else:
+                self.youdaoTransMain()
 
 
     # 5.切换语言
@@ -437,6 +471,9 @@ class Application(Frame):
 
     # 6.切换网站
     def chgWeb(self, event=None):
+        if self.tipFlag:
+            self.tipFlag = False
+            messagebox.showinfo('提示', '有道翻译的"英<->日"互译不可用')
         self.mWebMenu['text'] = self.webTxt[self.web.get()]
         self.webLabel['text'] = self.webTxt[self.web.get()]+'翻译'
 
