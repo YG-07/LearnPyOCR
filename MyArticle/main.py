@@ -14,7 +14,8 @@ import time
 from selenium import webdriver
 from urllib import parse
 
-
+import pytesseract as pt
+from PIL import Image
 
 class Application(Frame):
     # 一个经典的GUI程序
@@ -29,6 +30,7 @@ class Application(Frame):
         self.master.update()
         print('当前窗口1：', self.master.winfo_width(), 'x', self.master.winfo_height())
         self.createWidget()
+        # self.initFunc()
 
     # 创建静态数据
     def createState(self):
@@ -53,6 +55,7 @@ class Application(Frame):
         self.f2='幼圆 12'
 
         # 控制面板的参数
+        self.importFile=None
         self.pwFlag=False
         self.p2Flag=False
         self.fxw=82*12
@@ -67,6 +70,8 @@ class Application(Frame):
         # ocrdata目录
         self.tessPath=self.splitPath('where tesseract')
         self.tessDataPath=self.tessPath+'\\tessdata'
+        self.tessExe = self.tessPath+'\\tesseract.exe'
+        pt.pytesseract.tesseract_cmd = self.tessExe
         self.ocrFiles=self.findFile()
 
         self.downOcrUrl='https://github.com/tesseract-ocr/tessdata_fast'
@@ -161,6 +166,7 @@ class Application(Frame):
 
         # 将菜单添加到主窗口
         self.master.config(menu=menubar)
+        self.menubar = menubar
 
         # 设计界面和组件
         # 划分面板上下2个面板，设置状态栏
@@ -192,7 +198,7 @@ class Application(Frame):
         self.startBtn.pack(side='left', padx=5)
         self.grabBtn = tk.Button(self.top_frame, width=14, text='截图并识别(F2)', font=self.f2)
         self.grabBtn.pack(side='left', padx=2)
-
+        self.resetBtn = tk.Button(self.top_frame, width=14, text='重置', font=self.f2)
 
         # 面板2的[左框架]组件
         self.editImgBtn = tk.Button(self.left_frame, width=8, text='编辑图片', font=self.f2)
@@ -260,6 +266,9 @@ class Application(Frame):
         self.startBtn.bind('<Button-1>', self.start)
         self.grabBtn.bind('<Button-1>', self.grabStart)
         self.showBtn.bind('<Button-1>', self.chgP2)
+        self.formatBtn.bind('<Button-1>', self.formatTxt)
+        self.editImgBtn.bind('<Button-1>', self.editFile)
+        self.resetBtn.bind('<Button-1>', self.resetApp)
 
         # 全局监听快捷键
         # 1.[文件]菜单
@@ -294,24 +303,33 @@ class Application(Frame):
         self.T2.bind('<Control-plus>', lambda event: self.chgFont(event,True))
         self.T2.bind('<Control-minus>', lambda event: self.chgFont(event,False))
 
+    # 功能初始化
+    # def initFunc(self):
+        # if self.importFile==None:
+        #     self.menubar.entryconfig('保存识别文本', state='disabled')
+        #     self.menubar.entryconfig('保存翻译文本', state='disabled')
+        #     self.menubar.entryconfig('保存全部', state='disabled')
+
     # 事件和函数
     # 分割主面板pw
     def chgPw(self, event=None):
         if not self.pwFlag:
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hp2))
             self.master.minsize(self.wmin, self.hp2)
-            self.startBtn['text'] = '重置'
-            self.showBtn0['text'] = '收起'
+            self.startBtn.pack_forget()
             self.grabBtn.pack_forget()
+            self.resetBtn.pack(side='left', padx=2)
+            self.showBtn0['text'] = '收起'
             self.pw['height'] = 450
             self.pw.add(self.p2)
             self.p2.add(self.left_frame)
         elif self.pwFlag:
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hmin))
             self.master.minsize(self.wmin, self.hmin)
-            self.startBtn['text'] = '导入并识别'
-            self.showBtn0['text'] = '展开'
+            self.resetBtn.pack_forget()
+            self.startBtn.pack(side='left', padx=5)
             self.grabBtn.pack(side='left', padx=5)
+            self.showBtn0['text'] = '展开'
             self.pw['height'] = 150
             self.pw.forget(self.p2)
         self.pwFlag = not self.pwFlag
@@ -345,15 +363,30 @@ class Application(Frame):
 
     # 1.[开始识别]按钮的事件
     def start(self, event=None):
-        filename=askopenfilename(title='导入图片或文本文件', filetypes=[('图片文件', '.png','.jpg'),('文本文件', '.txt')])
-        if filename:
-            (dir,file)=os.path.split(filename)
+        path=askopenfilename(title='导入图片或文本文件', filetypes=[('所有文件', '*.*'),('文本文件', '.txt')])
+        if path:
+            (dir,file)=os.path.split(path)
             (filename,extension)=os.path.splitext(file)
-            print(extension)
+            print(path,extension)
             if extension=='.txt':
-                pass
-        self.chgPw()
-        self.T1.insert(1.0, '大家好')
+                self.importFile=path
+                self.editImgBtn['text']='编辑文本'
+                self.chgPw()
+                with open(path, 'r') as f:
+                    text=f.read()
+                self.T1.delete(1.0, END)
+                self.T1.insert(1.0, text)
+            else:
+                try:
+                    self.importFile=path
+                    self.chgPw()
+                    img = Image.open(path)
+                    text = pt.image_to_string(img, lang='chi_sim')
+                    self.T1.delete(1.0, END)
+                    self.T1.insert(1.0, text)
+                    print(text)
+                except:
+                    messagebox.showerror('导入错误', '导入文件格式错误，不是图片或文本!')
 
     # 2.[截图并识别]按钮的事件
     def grabStart(self, event):
@@ -395,6 +428,12 @@ class Application(Frame):
     def editTxt(self, event=None):
         print('编辑文本')
 
+    def editFile(self, event=None):
+        if self.importFile:
+            os.startfile(self.importFile)
+        else:
+            messagebox.showinfo('信息', '未打开任何文件！')
+
     # 3.打开图片地址
     def openImgPath(self, event=None):
         print('打开图片地址')
@@ -410,7 +449,18 @@ class Application(Frame):
 
     # 2.格式化
     def formatTxt(self, event=None):
-        print('格式化')
+        txt = self.T1.get(1.0, END)
+        txt = txt.replace('  ', ' ')
+        txt =txt.replace('\r','\n')
+        txt =txt.replace('\n\n','\n')
+        txt =txt.replace('\n ','')
+        txt =txt.replace('',' ')
+        self.T1.delete(1.0, END)
+        self.T1.insert(1.0, txt)
+        txt = self.T2.get(1.0, END)
+        txt = txt.replace('\n','')
+        self.T2.delete(1.0, END)
+        self.T2.insert(1.0, txt)
 
     # 4.[工具]菜单
     # 1.切换识别语言
