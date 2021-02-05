@@ -15,7 +15,9 @@ from selenium import webdriver
 from urllib import parse
 
 import pytesseract as pt
-from PIL import Image
+from PIL import Image, ImageGrab
+
+import json
 
 class Application(Frame):
     # 一个经典的GUI程序
@@ -40,15 +42,42 @@ class Application(Frame):
         self.hp2=550
         self.wp3=910
 
+        # [帮助]菜单
+        # ocrdata目录
+        self.tessPath = self.splitPath('where tesseract')
+        self.tessDataPath = self.tessPath + '\\tessdata'
+        self.tessExe = self.tessPath + '\\tesseract.exe'
+        pt.pytesseract.tesseract_cmd = self.tessExe
+        # 已经安装的语言包
+        self.ocrFiles = self.findFile()
+        # 根据遍历ocr名生成标签
+        with open('./MyOcr.json', 'r', encoding='utf-8') as f:
+            self.allOcr = json.load(f)
+        print(self.allOcr)
+
+        # 遍历生成语言包字典
+        self.ocr = StringVar()
+        self.ocrFor = {}
+        fla=True
+        for key in self.ocrFiles:
+            if fla:
+                self.ocr.set(key)
+                fla=False
+            try:
+                tmp = self.allOcr[key]
+            except KeyError:
+                tmp = key + '?'
+            self.ocrFor[key] = tmp
+        print(self.ocrFor)
+
         # 单选标签
-        self.langTxt=['','中->英','中->日','英->中','英->日','日->中','日->英']
-        self.ocrTxt=['','中文(简体)','英文','日文','中文(繁)']
-        self.webTxt=['','百度','有道']
+        self.lang = IntVar()
+        self.lang.set(0)
+        self.langTxt=['中->英','中->日','英->中','英->日','日->中','日->英']
+        self.webTxt=['百度','有道']
         # 翻译对照
         self.baiduTrans={'中':'zh', '英':'en', '日':'jp'}
-        self.youdaoTrans=['', 2, 4, 3, 3, 5, 5]
-        # 根据遍历ocr名生成标签
-        self.ocrFor={'chi_sim':'中文(简体)','eng':'英文','jpn':'日文','chi_tra':'中文(繁)'}
+        self.youdaoTrans=[2, 2, 3, 3, 5, 5]
 
         # 字体
         self.f1='幼圆 13'
@@ -66,14 +95,8 @@ class Application(Frame):
         # 路径和网站
         # 翻译网站
         self.transUrl=['','https://fanyi.baidu.com/','http://fanyi.youdao.com/']
-        # [帮助]菜单
-        # ocrdata目录
-        self.tessPath=self.splitPath('where tesseract')
-        self.tessDataPath=self.tessPath+'\\tessdata'
-        self.tessExe = self.tessPath+'\\tesseract.exe'
-        pt.pytesseract.tesseract_cmd = self.tessExe
-        self.ocrFiles=self.findFile()
 
+        # https://tesseract-ocr.github.io/tessdoc/Data-Files
         self.downOcrUrl='https://github.com/tesseract-ocr/tessdata_fast'
         self.tessdocUrl='https://tesseract-ocr.github.io/tessdoc/'
         self.pytessUrl='https://pypi.org/project/pytesseract/'
@@ -90,14 +113,12 @@ class Application(Frame):
         # 创建子菜单,tearoff为0关闭工具栏
         mFile = Menu(menubar, tearoff=0)
         mEdit = Menu(menubar, tearoff=0)
-        mFormat = Menu(menubar, tearoff=0)
         mTool = Menu(menubar, tearoff=0)
         mHelp = Menu(menubar, tearoff=0)
 
         # 加入主菜单
         menubar.add_cascade(label='文件(F)', menu=mFile)
         menubar.add_cascade(label='编辑(E)', menu=mEdit)
-        menubar.add_cascade(label='格式(O)', menu=mFormat)
         menubar.add_cascade(label='工具(T)', menu=mTool)
         menubar.add_cascade(label='帮助(H)', menu=mHelp)
 
@@ -115,47 +136,38 @@ class Application(Frame):
         # 2.添加[编辑]的子菜单项
         mEdit.add_command(label='编辑图片', accelerator='Ctrl+M', command='')
         mEdit.add_command(label='编辑文本', accelerator='Ctrl+T', command='')
+        mEdit.add_command(label='格式化', accelerator='Ctrl+F', command='')
         mEdit.add_command(label='打开图片目录', command='')
         mEdit.add_command(label='打开文本目录', command='')
 
-        # 3.添加[格式]的子菜单项
-        mFormat.add_command(label='字体', accelerator='Ctrl+D', command='')
-        mFormat.add_command(label='格式化', accelerator='Ctrl+F', command='')
 
-        # 4.添加[工具]的子菜单项
-        # 4.1二级菜单[切换翻译语言]
-        self.lang = IntVar()
-        self.lang.set(1)
+        # 3.添加[工具]的子菜单项
+        # 3.1二级菜单[切换翻译语言]
         self.mLang = Menu(self, tearoff=0)
-        self.mLang.add_radiobutton(label='中->英', value=1, variable=self.lang, command=self.chgLang)
-        self.mLang.add_radiobutton(label='中->日', value=2, variable=self.lang, command=self.chgLang)
-        self.mLang.add_radiobutton(label='英->中', value=3, variable=self.lang, command=self.chgLang)
-        self.mLang.add_radiobutton(label='英->日', value=4, variable=self.lang, command=self.chgLang)
-        self.mLang.add_radiobutton(label='日->中', value=5, variable=self.lang, command=self.chgLang)
-        self.mLang.add_radiobutton(label='日->英', value=6, variable=self.lang, command=self.chgLang)
+
+        for index, value in enumerate(self.langTxt):
+            self.mLang.add_radiobutton(label=value, value=index, variable=self.lang, command=self.chgLang)
+
         mTool.add_cascade(label='切换翻译语言', menu=self.mLang)
-        # 4.2 二级菜单[切换翻译网站]
+        # 3.2 二级菜单[切换翻译网站]
         self.web = IntVar()
         self.web.set(1)
         mWeb = Menu(self, tearoff=0)
         mWeb.add_radiobutton(label='百度翻译', value=1, variable=self.web, command=self.chgWeb)
         mWeb.add_radiobutton(label='有道翻译', value=2, variable=self.web, command=self.chgWeb)
         mTool.add_cascade(label='切换翻译网站', menu=mWeb)
-        mTool.add_command(label='一键截图', accelerator='F2', command='')
+        mTool.add_command(label='一键截图', accelerator='F2', command=self.grabImg)
         mTool.add_command(label='一键翻译', accelerator='F3', command=self.trans)
         mTool.add_separator()
 
-        self.ocr = IntVar()
-        self.ocr.set(1)
         self.mOcr = Menu(self, tearoff=0)
-        self.mOcr.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command=self.chgOcr)
-        self.mOcr.add_radiobutton(label='英文', value=2, variable=self.ocr, command=self.chgOcr)
-        self.mOcr.add_radiobutton(label='日文', value=3, variable=self.ocr, command=self.chgOcr)
-        self.mOcr.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command=self.chgOcr)
+        for key in self.ocrFor:
+            self.mOcr.add_radiobutton(label=self.ocrFor[key], value=key, variable=self.ocr, command=self.chgOcr)
+
         mTool.add_cascade(label='切换识别语言', menu=self.mOcr)
         mTool.add_command(label='添加识别语言', command=self.addOcr)
 
-        # 5.添加[帮助]的子菜单项
+        # 4.添加[帮助]的子菜单项
         mHelp.add_command(label='关于', accelerator='Ctrl+H', command=self.about)
         mHelp.add_separator()
         mHelp.add_command(label='打开OCR安装目录', command=self.openOcrPath)
@@ -208,10 +220,10 @@ class Application(Frame):
 
         self.mOcrMenu = tk.Menubutton(self.left_frame, text='中文(简)', font=self.f2)
         self.mOcrRad = Menu(self.mOcrMenu, tearoff=0)
-        self.mOcrRad.add_radiobutton(label='中文(简)', value=1, variable=self.ocr, command=self.chgOcr)
-        self.mOcrRad.add_radiobutton(label='英文', value=2, variable=self.ocr, command=self.chgOcr)
-        self.mOcrRad.add_radiobutton(label='日文', value=3, variable=self.ocr, command=self.chgOcr)
-        self.mOcrRad.add_radiobutton(label='中文(繁)', value=4, variable=self.ocr, command=self.chgOcr)
+
+        for key in self.ocrFor:
+            self.mOcrRad.add_radiobutton(label=self.ocrFor[key], value=key, variable=self.ocr, command=self.chgOcr)
+
         self.mOcrMenu.config(menu=self.mOcrRad)
         self.mOcrMenu.grid(row=0, column=2, sticky='nw')
 
@@ -228,18 +240,14 @@ class Application(Frame):
         self.T1.grid(pady=5, padx=5, row=1, columnspan=5)
         self.t1Bar.grid(row=1, column=5, sticky='ns')
 
-
-
         # 面板2的[右框架]组件
         Label(self.right_frame, text='切换语言:', font='幼圆 12').grid(pady=2,row=0, column=0, sticky='nw')
         self.mLangMenu = tk.Menubutton(self.right_frame, text='中->英', font=self.f2)
         self.mLangRad = Menu(self.mLangMenu, tearoff=0)
-        self.mLangRad.add_radiobutton(label='中->英', value=1, variable=self.lang, command=self.chgLang)
-        self.mLangRad.add_radiobutton(label='中->日', value=2, variable=self.lang, command=self.chgLang)
-        self.mLangRad.add_radiobutton(label='英->中', value=3, variable=self.lang, command=self.chgLang)
-        self.mLangRad.add_radiobutton(label='英->日', value=4, variable=self.lang, command=self.chgLang)
-        self.mLangRad.add_radiobutton(label='日->中', value=5, variable=self.lang, command=self.chgLang)
-        self.mLangRad.add_radiobutton(label='日->英', value=6, variable=self.lang, command=self.chgLang)
+
+        for index, value in enumerate(self.langTxt):
+            self.mLangRad.add_radiobutton(label=value, value=index, variable=self.lang, command=self.chgLang)
+
         self.mLangMenu.config(menu=self.mLangRad)
         self.mLangMenu.grid(row=0, column=1, sticky='nw')
 
@@ -288,7 +296,7 @@ class Application(Frame):
         self.master.bind('<Control-f>', lambda event: self.formatTxt(event))
 
         # 4.[工具]菜单
-        self.master.bind('<KeyPress-F2>', lambda event: self.grabImg(event))
+        self.master.bind('<KeyPress-F2>', lambda event: self.grabImg())
         self.master.bind('<KeyPress-F3>', lambda event: self.trans(event))
 
         # 5.[帮助]菜单
@@ -381,7 +389,7 @@ class Application(Frame):
                     self.importFile=path
                     self.chgPw()
                     img = Image.open(path)
-                    text = pt.image_to_string(img, lang='chi_sim')
+                    text = pt.image_to_string(img, lang=self.ocr.get())
                     self.T1.delete(1.0, END)
                     self.T1.insert(1.0, text)
                     print(text)
@@ -389,18 +397,23 @@ class Application(Frame):
                     messagebox.showerror('导入错误', '导入文件格式错误，不是图片或文本!')
 
     # 2.[截图并识别]按钮的事件
-    def grabStart(self, event):
-        self.chgPw()
+    def grabStart(self, event=None):
+        if (self.pwFlag==False) and (self.p2Flag==False):
+            print('一键截图')
+            self.grabImg(self)
+
+            # self.chgPw()
 
     # 快捷键和菜单事件处理函数
     # 1.[文件]菜单
     # 1.导入图片
     def openImg(self, event=None):
-        self.chgPw()
+        self.start(self)
         print('导入图片')
 
     # 2.打开文本
     def openTxt(self, event=None):
+        self.start(self)
         print('打开文本')
 
     # 3.保存识别文本
@@ -458,14 +471,17 @@ class Application(Frame):
         self.T1.delete(1.0, END)
         self.T1.insert(1.0, txt)
         txt = self.T2.get(1.0, END)
-        txt = txt.replace('\n','')
+        txt = txt.replace('  ', ' ')
+        txt = txt.replace('\r', '\n')
+        txt = txt.replace('\n\n','\n')
+        txt = txt.replace('\n ', '')
         self.T2.delete(1.0, END)
         self.T2.insert(1.0, txt)
 
     # 4.[工具]菜单
     # 1.切换识别语言
     def chgOcr(self, event=None):
-        self.mOcrMenu['text'] = self.ocrTxt[self.ocr.get()]
+        self.mOcrMenu['text'] = self.ocrFor[self.ocr.get()]
 
     # 2.添加识别语言
     def addOcr(self, event=None):
@@ -486,12 +502,70 @@ class Application(Frame):
                 shutil.copyfile(addPath, dst)
                 messagebox.showinfo('信息', '成功添加'+filename+'语言包！')
 
-
-
     # 3.一键截图
+    # 初始化数据
+    def createData(self):
+        self.sx = 0
+        self.sy = 0
+        self.r = []
+        self.lastDraw = 0
+        self.startLine = False
+        self.pastDraw = None
+    # 画图开始函数
+    def startDraw(self, event):
+        self.c.delete(self.lastDraw)
+        if not self.startLine:
+            self.startLine = True
+            self.sx = event.x
+            self.sy = event.y
+    # 画图结束
+    def stopDraw(self, event):
+        print('坐标：({0},{1})-({2},{3})'.format(self.sx, self.sy, event.x, event.y))
+        print(self.r)
+        if len(self.r)>0:
+            self.c.create_rectangle(self.r[0], self.r[1], self.r[2], self.r[3], outline='#fff')
+            self.r = []
+        self.r.append(self.sx)
+        self.r.append(self.sy)
+        self.r.append(event.x)
+        self.r.append(event.y)
+        self.startLine = False
+        self.lastDraw = 0
+    #
+    def grabSave(self):
+        self.imgTmp = ImageGrab.grab(bbox=(self.r[0], self.r[1], self.r[2], self.r[3]))
+        self.imgTmp.save('grab.jpg')
+        self.gWin.destroy()
+
+    # 矩形
+    def myRect(self, event):
+        self.startDraw(event)
+        self.lastDraw=self.c.create_rectangle(self.sx, self.sy, event.x, event.y, outline='#777')
+
+
     def grabImg(self, event=None):
-        if (self.pwFlag==False) and (self.p2Flag==False):
-            print('一键截图')
+        from win32 import win32api, win32gui,win32print
+        import win32con
+        hDC = win32gui.GetDC(0)
+        w = win32print.GetDeviceCaps(hDC, win32con.DESKTOPHORZRES)
+        h = win32print.GetDeviceCaps(hDC, win32con.DESKTOPVERTRES)
+        print('当前分辨率：',w,'x',h)
+
+        self.createData()
+        self.gWin = tk.Toplevel()
+        self.gWin.title(' ')
+        self.gWin.overrideredirect(True)
+        self.gWin.attributes('-alpha', 0.4)
+        self.gWin.geometry('{0}x{1}+0+0'.format(w, h))
+        self.gWin.resizable(0, 0)
+        self.c=Canvas(self.gWin, width=w, height=h)
+        self.c.pack()
+        self.gWin.bind('<KeyPress-Escape>', lambda event: self.gWin.quit())
+        self.c.bind('<B1-Motion>', self.myRect)
+        self.c.bind('<ButtonRelease-1>', self.stopDraw)
+        self.gWin.bind('<KeyPress-Return>', lambda event: self.grabSave())
+
+        self.gWin.mainloop()
 
     # 4.一键翻译
     def baiduTransMain(self, event=None):
