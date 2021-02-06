@@ -2,17 +2,11 @@
 
 
 import tkinter as tk
-import tkinter.ttk as ttk
-from tkinter import *
-from tkinter.ttk import *
+from PIL import ImageGrab
+from win32 import win32api, win32gui,win32print
+import win32con
 
-import os
-import  shutil
-
-from PIL import Image, ImageGrab
-
-
-class Application(Frame):
+class Application(tk.Frame):
     # 一个经典的GUI程序
     def __init__(self, master=None):
         super().__init__(master)    #super()是父类的构造器
@@ -23,8 +17,12 @@ class Application(Frame):
 
     def createWidget(self):
         # 创建组件
-        self.btn=Button(self, text='一键截图(F2)')
-        self.btn.pack()
+        txt='按F2会最小化窗口再截图,而按钮不会最小化,可修正再确定截图。\n' \
+            '按Enter确定截图，按Esc取消截图，图片在同目录命名grab.jpg'
+        self.lab = tk.Label(self, text=txt, font=('仿宋', 15))
+        self.lab.pack(pady=5)
+        self.btn = tk.Button(self, text='一键截图(F2)', font=('黑体', 16))
+        self.btn.pack(pady=5)
 
         self.btn.bind('<Button-1>', self.btnGrabImg)
         self.master.bind('<KeyPress-F2>', self.grabImg)
@@ -79,8 +77,6 @@ class Application(Frame):
         self.lastDraw = self.c.create_rectangle(self.sx, self.sy, event.x, event.y, outline='#000')
 
     def btnGrabImg(self, event=None):
-        from win32 import win32api, win32gui,win32print
-        import win32con
         hDC = win32gui.GetDC(0)
         w = win32print.GetDeviceCaps(hDC, win32con.DESKTOPHORZRES)
         h = win32print.GetDeviceCaps(hDC, win32con.DESKTOPVERTRES)
@@ -93,7 +89,7 @@ class Application(Frame):
         self.gWin.attributes('-alpha', 0.5)
         self.gWin.geometry('{0}x{1}+0+0'.format(w, h))
         self.gWin.resizable(0, 0)
-        self.c=Canvas(self.gWin, width=w, height=h)
+        self.c=tk.Canvas(self.gWin, width=w, height=h)
         self.c.pack()
         self.gWin.bind('<KeyPress-Escape>', lambda event: self.gWin.quit())
         self.c.bind('<B1-Motion>', self.myRect)
@@ -105,8 +101,8 @@ class Application(Frame):
 
 
 if __name__ == '__main__':
-    root = Tk()
+    root = tk.Tk()
     root.title('一个经典的面向对象的GUI程序')
-    root.geometry('20x30+400+160')
+    root.geometry('600x100+400+160')
     app = Application(master=root)
     root.mainloop()

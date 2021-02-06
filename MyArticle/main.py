@@ -484,23 +484,49 @@ class Application(Frame):
         self.mOcrMenu['text'] = self.ocrFor[self.ocr.get()]
 
     # 2.添加识别语言
+    def aliasOk(self, filename, event=None):
+        self.aliasname = self.alEntry.get()
+        self.aliasname = self.aliasname.replace(' ', '')
+        if self.aliasname:
+            self.allOcr[filename] = self.aliasname
+            with open('./MyOcr.json', 'w', encoding='utf-8') as f:
+                ocrStr = json.dumps(self.allOcr).encode('utf-8').decode('unicode-escape')
+                print(ocrStr)
+                f.write(ocrStr)
+            self.aliasWin.destroy()
+        else:
+            messagebox.showinfo('提示', '语音包别名错误！')
+
     def addOcr(self, event=None):
         print('添加识别语言')
         addPath = askopenfilename(title='添加traineddata文件到tessdata目录', filetypes=[('OCR文件', '.traineddata')])
         if addPath:
-            filename=addPath.split('/')[-1]
-            dst=self.tessDataPath+'\\'+filename
+            file=addPath.split('/')[-1]
+            (filename, extension) = os.path.splitext(file)
+            dst=self.tessDataPath+'\\'+file
             print(addPath, dst)
             flag=False
             if os.path.exists(dst):
-                if messagebox.askquestion('信息', filename+'语言包已经存在！是否替换？'):
+                if messagebox.askquestion('信息', filename+'语言包已经存在！是否替换？')=='yes':
                     flag=True
                     print(flag)
             else:
                 flag=True
             if flag:
                 shutil.copyfile(addPath, dst)
-                messagebox.showinfo('信息', '成功添加'+filename+'语言包！')
+                messagebox.showinfo('信息', '成功添加'+filename+'语言包！重启软件生效!')
+                self.aliasWin = tk.Toplevel()
+                self.aliasWin.geometry('270x70+400+200')
+                self.aliasWin.title('设置语言包别名')
+                self.alEntry = Entry(self.aliasWin, width=20)
+                self.alEntry.pack(pady=5)
+                self.alBtn1 = Button(self.aliasWin, text='确定', width=5)
+                self.alBtn1.pack(side='left', padx=60)
+                self.alBtn2 = Button(self.aliasWin, text='取消', width=5)
+                self.alBtn2.pack(side='left')
+                self.alBtn1.bind('<Button-1>', lambda event: self.aliasOk(filename))
+                self.alBtn2.bind('<Button-1>', lambda event: self.aliasWin.destroy())
+                self.aliasWin.mainloop()
 
     # 3.一键截图
     # 初始化数据
@@ -533,9 +559,9 @@ class Application(Frame):
         self.lastDraw = 0
     #
     def grabSave(self):
+        self.gWin.destroy()
         self.imgTmp = ImageGrab.grab(bbox=(self.r[0], self.r[1], self.r[2], self.r[3]))
         self.imgTmp.save('grab.jpg')
-        self.gWin.destroy()
 
     # 矩形
     def myRect(self, event):
@@ -560,7 +586,7 @@ class Application(Frame):
         self.gWin.resizable(0, 0)
         self.c=Canvas(self.gWin, width=w, height=h)
         self.c.pack()
-        self.gWin.bind('<KeyPress-Escape>', lambda event: self.gWin.quit())
+        self.gWin.bind('<KeyPress-Escape>', lambda event: self.gWin.destroy())
         self.c.bind('<B1-Motion>', self.myRect)
         self.c.bind('<ButtonRelease-1>', self.stopDraw)
         self.gWin.bind('<KeyPress-Return>', lambda event: self.grabSave())
