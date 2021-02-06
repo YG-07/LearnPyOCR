@@ -1,0 +1,9 @@
+  Python由荷兰数学和计算机科学研究学会的Guido van Rossum 于1990 年代初设计，作为一门叫做ABC语言的替代品。
+  Python提供了高效的高级数据结构，还能简单有效地面向对象编程。
+  Python语法和动态类型，以及解释型语言的本质，使它成为多数平台上写脚本和快速开发应用的编程语言，随着版本的不断更新和语言新功能的添加，逐渐被用于独立的、大型项目的开发。
+
+
+Python was designed by Guido van Rossum of the Dutch Society for mathematical and computer science research in the early 1990s as an alternative to a language called abc.
+Python provides efficient high-level data structure, but also simple and effective object-oriented programming.
+Python syntax and dynamic types, as well as the nature of interpretive language, make it a programming language for scripting and rapid application development on most platforms. With the continuous updating of versions and the addition of new language functions, it is gradually used for the development of independent and large-scale projects.
+

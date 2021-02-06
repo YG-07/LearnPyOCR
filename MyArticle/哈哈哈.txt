@@ -1,0 +1,22 @@
+def grabSave(seLf ):
+seLf .gwin.destroy()
+seLf.imgTmp = ImageGrab.grab(bbox=(seLf.r[6]，seLf.r[1]，seLf.r[2]，seLf.r[3]))
+seLf .imgTmp.save('grab.jpg')
+
+
+
+def grabSave（自身）：
+自我。
+格温。摧毁
+()
+自我.imgTmp
+=
+图像抓取。抓取
+（bbox=（seLf.r[6]，seLf.r[1]，seLf.r[2]，seLf.r[3]））
+自我。
+imgTmp保存
+('
+抓取.jpg
+')
+
+

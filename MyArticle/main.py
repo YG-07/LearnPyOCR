@@ -3,7 +3,7 @@
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import *
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter.ttk import *
 from tkinter import messagebox
 
@@ -94,9 +94,11 @@ class Application(Frame):
 
         # 路径和网站
         # 翻译网站
-        self.transUrl=['','https://fanyi.baidu.com/','http://fanyi.youdao.com/']
+        self.web = IntVar()
+        self.web.set(0)
+        self.transUrl=['https://fanyi.baidu.com/','http://fanyi.youdao.com/']
 
-        # https://tesseract-ocr.github.io/tessdoc/Data-Files
+        # 语言包介绍： https://tesseract-ocr.github.io/tessdoc/Data-Files
         self.downOcrUrl='https://github.com/tesseract-ocr/tessdata_fast'
         self.tessdocUrl='https://tesseract-ocr.github.io/tessdoc/'
         self.pytessUrl='https://pypi.org/project/pytesseract/'
@@ -126,19 +128,19 @@ class Application(Frame):
         mFile.add_command(label='导入图片', accelerator='Ctrl+N', command=self.openImg)
         mFile.add_command(label='导入文本', accelerator='Ctrl+O', command=self.openTxt)
         mFile.add_separator()
-        mFile.add_command(label='保存识别文本', accelerator='Ctrl+F1', command='')
-        mFile.add_command(label='保存翻译文本', accelerator='Ctrl+F2', command='')
-        mFile.add_command(label='保存全部', accelerator='Ctrl+S', command='')
+        mFile.add_command(label='保存识别文本', accelerator='Ctrl+F1', command=self.saveT1)
+        mFile.add_command(label='保存翻译文本', accelerator='Ctrl+F2', command=self.saveT2)
+        mFile.add_command(label='保存全部', accelerator='Ctrl+S', command=self.saveTxt)
         mFile.add_separator()
-        mFile.add_command(label='重启', accelerator='Ctrl+R', command='')
-        mFile.add_command(label='退出', accelerator='Alt+F4', command='')
+        mFile.add_command(label='重启', accelerator='Ctrl+R', command=self.resetApp)
+        mFile.add_command(label='退出', accelerator='Alt+F4', command=lambda : self.master.destroy())
 
         # 2.添加[编辑]的子菜单项
-        mEdit.add_command(label='编辑图片', accelerator='Ctrl+M', command='')
-        mEdit.add_command(label='编辑文本', accelerator='Ctrl+T', command='')
-        mEdit.add_command(label='格式化', accelerator='Ctrl+F', command='')
-        mEdit.add_command(label='打开图片目录', command='')
-        mEdit.add_command(label='打开文本目录', command='')
+        mEdit.add_command(label='编辑图片', accelerator='Ctrl+M', command=self.editFile)
+        mEdit.add_command(label='编辑文本', accelerator='Ctrl+T', command=self.editFile)
+        mEdit.add_command(label='格式化', accelerator='Ctrl+F', command=self.formatTxt)
+        mEdit.add_command(label='打开图片目录', command=self.openFilePath)
+        mEdit.add_command(label='打开文本目录', command=self.openFilePath)
 
 
         # 3.添加[工具]的子菜单项
@@ -150,11 +152,10 @@ class Application(Frame):
 
         mTool.add_cascade(label='切换翻译语言', menu=self.mLang)
         # 3.2 二级菜单[切换翻译网站]
-        self.web = IntVar()
-        self.web.set(1)
+
         mWeb = Menu(self, tearoff=0)
-        mWeb.add_radiobutton(label='百度翻译', value=1, variable=self.web, command=self.chgWeb)
-        mWeb.add_radiobutton(label='有道翻译', value=2, variable=self.web, command=self.chgWeb)
+        mWeb.add_radiobutton(label='百度翻译', value=0, variable=self.web, command=self.chgWeb)
+        mWeb.add_radiobutton(label='有道翻译', value=1, variable=self.web, command=self.chgWeb)
         mTool.add_cascade(label='切换翻译网站', menu=mWeb)
         mTool.add_command(label='一键截图', accelerator='F2', command=self.grabImg)
         mTool.add_command(label='一键翻译', accelerator='F3', command=self.trans)
@@ -254,8 +255,8 @@ class Application(Frame):
         Label(self.right_frame, text='切换翻译网站:', font=self.f2).grid(pady=2,row=0, column=2, sticky='nw')
         self.mWebMenu = tk.Menubutton(self.right_frame, text='百度', font=self.f2)
         self.mWebRad = Menu(self.mWebMenu, tearoff=0)
-        self.mWebRad.add_radiobutton(label='百度', value=1, variable=self.web, command=self.chgWeb)
-        self.mWebRad.add_radiobutton(label='有道', value=2, variable=self.web, command=self.chgWeb)
+        self.mWebRad.add_radiobutton(label='百度', value=0, variable=self.web, command=self.chgWeb)
+        self.mWebRad.add_radiobutton(label='有道', value=1, variable=self.web, command=self.chgWeb)
         self.mWebMenu.config(menu=self.mWebRad)
         self.mWebMenu.grid(row=0, column=3, sticky='nw')
         self.webLabel = tk.Label(self.right_frame, text='百度翻译', font=self.f2, fg='blue')
@@ -288,18 +289,15 @@ class Application(Frame):
         self.master.bind('<Control-r>', lambda event: self.resetApp(event))
 
         # 2.[编辑]菜单
-        self.master.bind('<Control-m>', lambda event: self.editImg(event))
-        self.master.bind('<Control-t>', lambda event: self.editTxt(event))
-
-        # 3.[格式]菜单
-        self.master.bind('<Control-d>', lambda event: self.fontTxt(event))
+        self.master.bind('<Control-m>', lambda event: self.editFile(event))
+        self.master.bind('<Control-t>', lambda event: self.editFile(event))
         self.master.bind('<Control-f>', lambda event: self.formatTxt(event))
 
-        # 4.[工具]菜单
+        # 3.[工具]菜单
         self.master.bind('<KeyPress-F2>', lambda event: self.grabImg())
         self.master.bind('<KeyPress-F3>', lambda event: self.trans(event))
 
-        # 5.[帮助]菜单
+        # 4.[帮助]菜单
         self.master.bind('<Control-h>', lambda event: self.about(event))
 
         # 隐藏快捷键
@@ -370,9 +368,22 @@ class Application(Frame):
         self.master.update()
 
     # 1.[开始识别]按钮的事件
-    def start(self, event=None):
-        path=askopenfilename(title='导入图片或文本文件', filetypes=[('所有文件', '*.*'),('文本文件', '.txt')])
+    def start(self, event=None, tit='文件'):
+        if tit=='图片':
+            ftype=[('JPG文件', '.jpg'), ('PNG文件', '.png'), ('BMP文件', '.bmp'), ('GIF文件', '.gif'),('所有文件', '*.*')]
+        elif tit=='文本':
+            ftype = [('文本文件', '.txt'),('所有文件', '*.*')]
+        else:
+            ftype = [('图片/文本文件', '*.*')]
+
+        if self.pwFlag or self.p2Flag:
+            if messagebox.askquestion('提示', '是否重置软件?')=='no':
+                return
+            else:
+                self.resetApp()
+        path=askopenfilename(title='导入'+tit, filetypes=ftype)
         if path:
+            self.resetApp()
             (dir,file)=os.path.split(path)
             (filename,extension)=os.path.splitext(file)
             print(path,extension)
@@ -398,67 +409,79 @@ class Application(Frame):
 
     # 2.[截图并识别]按钮的事件
     def grabStart(self, event=None):
+        print('一键截图')
         if (self.pwFlag==False) and (self.p2Flag==False):
-            print('一键截图')
+            self.resetApp()
             self.grabImg(self)
-
             # self.chgPw()
 
     # 快捷键和菜单事件处理函数
     # 1.[文件]菜单
     # 1.导入图片
     def openImg(self, event=None):
-        self.start(self)
+        self.start(event,'图片')
         print('导入图片')
 
     # 2.打开文本
     def openTxt(self, event=None):
-        self.start(self)
+        self.start(event,'文本')
         print('打开文本')
+
+    def saveAs(self, t1, t2=None):
+        self.saveFile = asksaveasfilename(title='保存文件到', initialfile='未命名.txt', \
+            filetypes=[('文本文档', '*.txt')], defaultextension='.txt')
+        if not self.saveFile == '':
+            with open(self.saveFile, 'w') as f:
+                tmp = t1.get(1.0, END)
+                if t2:
+                    tmp = tmp + '\n\n' + t2.get(1.0, END)
+                f.write(tmp)
 
     # 3.保存识别文本
     def saveT1(self, event=None):
+        if self.pwFlag:
+            self.saveAs(self.T1)
         print('保存识别文本')
 
     # 4.保存翻译文本
     def saveT2(self, event=None):
+        if self.pwFlag and self.p2Flag:
+            self.saveAs(self.T2)
         print('保存翻译文本')
 
     # 5.保存合并2个文本
     def saveTxt(self, event=None):
+        if self.pwFlag and self.p2Flag:
+            self.saveAs(self.T1, self.T2)
         print('保存合并2个文本')
 
     # 6.重启
     def resetApp(self, event=None):
         print('重启')
+        if self.p2Flag:
+            self.T2.delete(1.0, END)
+            self.chgP2()
+        if self.pwFlag:
+            self.T1.delete(1.0, END)
+            self.chgPw()
+        if self.pwFlag or self.p2Flag:
+            self.importFile=None
 
     # 2.[编辑]菜单
-    # 1.编辑图片
-    def editImg(self, event=None):
-        print('编辑图片')
-
-    # 2.编辑文本
-    def editTxt(self, event=None):
-        print('编辑文本')
-
     def editFile(self, event=None):
-        if self.importFile:
-            os.startfile(self.importFile)
-        else:
-            messagebox.showinfo('信息', '未打开任何文件！')
+        if self.pwFlag:
+            if self.importFile:
+                os.startfile(self.importFile)
+            else:
+                messagebox.showinfo('信息', '未打开任何文件！')
 
-    # 3.打开图片地址
-    def openImgPath(self, event=None):
-        print('打开图片地址')
+    # 3.打开图片/文本地址
+    def openFilePath(self, event=None):
+        if self.pwFlag:
+            (fpath, file) = os.path.split(self.importFile)
+            os.startfile(fpath)
+            print('打开图片/文本地址')
 
-    # 4.打开文本地址
-    def openTxtPath(self, event=None):
-        print('打开文本地址')
-
-    # 3.[格式]菜单
-    # 1.字体
-    def fontTxt(self, event=None):
-        print('字体')
 
     # 2.格式化
     def formatTxt(self, event=None):
@@ -495,7 +518,7 @@ class Application(Frame):
                 f.write(ocrStr)
             self.aliasWin.destroy()
         else:
-            messagebox.showinfo('提示', '语音包别名错误！')
+            messagebox.showinfo('提示', '语言包的别名错误！请重新输入！')
 
     def addOcr(self, event=None):
         print('添加识别语言')
@@ -514,7 +537,7 @@ class Application(Frame):
                 flag=True
             if flag:
                 shutil.copyfile(addPath, dst)
-                messagebox.showinfo('信息', '成功添加'+filename+'语言包！重启软件生效!')
+                messagebox.showinfo('信息', '成功添加'+filename+'语言包，重启软件生效!')
                 self.aliasWin = tk.Toplevel()
                 self.aliasWin.geometry('270x70+400+200')
                 self.aliasWin.title('设置语言包别名')
@@ -607,7 +630,7 @@ class Application(Frame):
         self.driver.get(url)
         time.sleep(0.6)
         self.driver.save_screenshot("trans.png")
-        finds = self.driver.find_elements_by_xpath('//*[@class="output-bd"]/p/span')
+        finds = self.driver.find_elements_by_xpath('//p[@class="ordinary-output target-output clearfix"]')
         word = ''
         for item in finds:
             word += item.text + '\n'
@@ -627,12 +650,12 @@ class Application(Frame):
         self.driver.find_element_by_id('inputOriginal').send_keys(txt)
         time.sleep(0.2)
         self.driver.find_element_by_id('transMachine').click()
-        time.sleep(0.5)
-        self.driver.save_screenshot("trans.png")
         finds = self.driver.find_elements_by_xpath('//*[@id="transTarget"]/p/span')
         word = ''
         for item in finds:
             word += item.text + '\n'
+        time.sleep(0.5)
+        self.driver.save_screenshot("trans.png")
         self.T2.delete(1.0, END)
         self.T2.insert(1.0, word)
 
@@ -640,7 +663,7 @@ class Application(Frame):
         if self.pwFlag:
             if self.p2Flag == False:
                 self.chgP2()
-            if self.web.get()==1:
+            if self.web.get()==0:
                 self.baiduTransMain()
             else:
                 self.youdaoTransMain()
@@ -675,7 +698,8 @@ class Application(Frame):
         l.pack(anchor='w',padx=20, pady=10)
         Separator(aboutWin).pack(fill='x', padx=5)
         aboutTxt = '这是关于内容\n' \
-                   '哈哈哈'
+                   '哈哈哈\n' \
+                   '(！此软件为测试版本！)'
         helpTxt = '这是帮助内容\n' \
                   '喵喵喵\n' \
                   '嘤嘤嘤\n'
@@ -685,7 +709,7 @@ class Application(Frame):
         tk.Label(aboutWin, text='帮助', font=('微软雅黑', 13)).pack(anchor='w', padx=40, pady=5)
         helpLabel = tk.Label(aboutWin, text=helpTxt, font=('宋体', 11), justify='left')
         helpLabel.pack(anchor='w',padx=50)
-        tk.Label(aboutWin, text='Copyright © 2020-2021 Siwei Du. All rights reserved.', font=('黑体', 10)).pack(anchor='s', pady=20)
+        tk.Label(aboutWin, text='Copyright © 2020-2021 永仙. All rights reserved.', font=('黑体', 10)).pack(anchor='s', pady=20)
         aboutWin.mainloop()
 
     # 通过cmd获取路径
