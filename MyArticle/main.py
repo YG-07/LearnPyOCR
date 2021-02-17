@@ -36,6 +36,12 @@ class Application(Frame):
 
     # 创建静态数据
     def createState(self):
+        # ocrdata目录
+        self.tessPath = self.splitPath('where tesseract')
+        self.tessDataPath = self.tessPath + '\\tessdata'
+        self.tessExe = self.tessPath + '\\tesseract.exe'
+        pt.pytesseract.tesseract_cmd = self.tessExe
+
         # 窗口大小
         self.wmin=700
         self.hmin=200
@@ -43,17 +49,15 @@ class Application(Frame):
         self.wp3=910
 
         # [帮助]菜单
-        # ocrdata目录
-        self.tessPath = self.splitPath('where tesseract')
-        self.tessDataPath = self.tessPath + '\\tessdata'
-        self.tessExe = self.tessPath + '\\tesseract.exe'
-        pt.pytesseract.tesseract_cmd = self.tessExe
         # 已经安装的语言包
         self.ocrFiles = self.findFile()
         # 根据遍历ocr名生成标签
-        with open('./MyOcr.json', 'r', encoding='utf-8') as f:
+        with open('MyOcr.json', 'r', encoding='utf-8') as f:
             self.allOcr = json.load(f)
         print(self.allOcr)
+
+        self.stat = StringVar()
+        self.stat.set('欢迎使用！当前未打开文件')
 
         # 遍历生成语言包字典
         self.ocr = StringVar()
@@ -196,9 +200,9 @@ class Application(Frame):
 
         # 设置状态栏
         Separator(self.master).pack(fill='x', padx=5)
-        status_frame = Frame(self.master, relief='raised').pack(fill='x')
-        Label(status_frame, text='状态栏').pack(side='left', fill='x')
-        # ttk.Sizegrip(status_frame).pack(anchor='ne')
+        self.status_frame = Frame(self.master, relief='raised').pack(fill='x')
+        self.state_label = Label(self.status_frame, textvariable=self.stat)
+        self.state_label.pack(side='left', fill='x')
 
         # 添加组件
         # 面板1的4个组件
@@ -212,6 +216,7 @@ class Application(Frame):
         self.grabBtn = tk.Button(self.top_frame, width=14, text='截图并识别(F2)', font=self.f2)
         self.grabBtn.pack(side='left', padx=2)
         self.resetBtn = tk.Button(self.top_frame, width=14, text='重置', font=self.f2)
+        self.reStartBtn = tk.Button(self.top_frame, width=14, text='重新识别', font=self.f2)
 
         # 面板2的[左框架]组件
         self.editImgBtn = tk.Button(self.left_frame, width=8, text='编辑图片', font=self.f2)
@@ -278,6 +283,7 @@ class Application(Frame):
         self.formatBtn.bind('<Button-1>', self.formatTxt)
         self.editImgBtn.bind('<Button-1>', self.editFile)
         self.resetBtn.bind('<Button-1>', self.resetApp)
+        self.reStartBtn.bind('<Button-1>', self.startRead)
 
         # 全局监听快捷键
         # 1.[文件]菜单
@@ -325,6 +331,7 @@ class Application(Frame):
             self.startBtn.pack_forget()
             self.grabBtn.pack_forget()
             self.resetBtn.pack(side='left', padx=2)
+            self.reStartBtn.pack(side='left', padx=2)
             self.showBtn0['text'] = '收起'
             self.pw['height'] = 450
             self.pw.add(self.p2)
@@ -333,6 +340,7 @@ class Application(Frame):
             self.master.geometry('{0}x{1}'.format(self.wmin,self.hmin))
             self.master.minsize(self.wmin, self.hmin)
             self.resetBtn.pack_forget()
+            self.reStartBtn.pack_forget()
             self.startBtn.pack(side='left', padx=5)
             self.grabBtn.pack(side='left', padx=5)
             self.showBtn0['text'] = '展开'
@@ -368,6 +376,13 @@ class Application(Frame):
         self.master.update()
 
     # 1.[开始识别]按钮的事件
+    def startRead(self, event=None):
+        img = Image.open(self.importFile)
+        text = pt.image_to_string(img, lang=self.ocr.get())
+        self.T1.delete(1.0, END)
+        self.T1.insert(1.0, text)
+        print(text)
+
     def start(self, event=None, tit='文件'):
         if tit=='图片':
             ftype=[('JPG文件', '.jpg'), ('PNG文件', '.png'), ('BMP文件', '.bmp'), ('GIF文件', '.gif'),('所有文件', '*.*')]
@@ -384,10 +399,12 @@ class Application(Frame):
         path=askopenfilename(title='导入'+tit, filetypes=ftype)
         if path:
             self.resetApp()
+            self.importFile = path
             (dir,file)=os.path.split(path)
             (filename,extension)=os.path.splitext(file)
             print(path,extension)
             if extension=='.txt':
+                self.stat.set('当前打开[文本]文件：'+self.importFile)
                 self.importFile=path
                 self.editImgBtn['text']='编辑文本'
                 self.chgPw()
@@ -397,15 +414,12 @@ class Application(Frame):
                 self.T1.insert(1.0, text)
             else:
                 try:
-                    self.importFile=path
+                    self.stat.set('当前打开[图片]文件：'+self.importFile)
                     self.chgPw()
-                    img = Image.open(path)
-                    text = pt.image_to_string(img, lang=self.ocr.get())
-                    self.T1.delete(1.0, END)
-                    self.T1.insert(1.0, text)
-                    print(text)
+                    self.startRead()
                 except:
                     messagebox.showerror('导入错误', '导入文件格式错误，不是图片或文本!')
+                    self.stat.set('当前未打开文件')
 
     # 2.[截图并识别]按钮的事件
     def grabStart(self, event=None):
@@ -413,7 +427,7 @@ class Application(Frame):
         if (self.pwFlag==False) and (self.p2Flag==False):
             self.resetApp()
             self.grabImg(self)
-            # self.chgPw()
+
 
     # 快捷键和菜单事件处理函数
     # 1.[文件]菜单
@@ -458,14 +472,14 @@ class Application(Frame):
     # 6.重启
     def resetApp(self, event=None):
         print('重启')
+        self.stat.set('欢迎使用！当前未打开文件')
         if self.p2Flag:
             self.T2.delete(1.0, END)
             self.chgP2()
         if self.pwFlag:
             self.T1.delete(1.0, END)
             self.chgPw()
-        if self.pwFlag or self.p2Flag:
-            self.importFile=None
+        self.importFile=None
 
     # 2.[编辑]菜单
     def editFile(self, event=None):
@@ -692,29 +706,32 @@ class Application(Frame):
     def about(self, event=None):
         aboutWin = tk.Toplevel()
         aboutWin.title('帮助和关于')
-        aboutWin.geometry('400x300+500+200')
-        aboutWin.resizable(0,0)
+        aboutWin.geometry('500x570+500+200')
+        # aboutWin.resizable(0,0)
         l = tk.Label(aboutWin, text='Python的图片文字识别的Tkinter程序', font=('微软雅黑',16))
         l.pack(anchor='w',padx=20, pady=10)
         Separator(aboutWin).pack(fill='x', padx=5)
-        aboutTxt = '这是关于内容\n' \
-                   '哈哈哈\n' \
-                   '(！此软件为测试版本！)'
-        helpTxt = '这是帮助内容\n' \
-                  '喵喵喵\n' \
-                  '嘤嘤嘤\n'
+        with open('help.txt','r', encoding='utf-8') as f:
+            ftxt = f.read()
+        txt=ftxt.split('---\n')
+        print(txt)
+        aboutTxt = txt[0]
+        helpTxt = txt[1]
         tk.Label(aboutWin, text='关于', font=('微软雅黑',13)).pack(anchor='w',padx=40, pady=5)
-        aboutLabel = tk.Label(aboutWin, text=aboutTxt, font=('宋体',11), justify='left')
+        aboutLabel = tk.Label(aboutWin, text=aboutTxt, font=('微软雅黑',11), justify='left')
         aboutLabel.pack(anchor='w',padx=50)
         tk.Label(aboutWin, text='帮助', font=('微软雅黑', 13)).pack(anchor='w', padx=40, pady=5)
-        helpLabel = tk.Label(aboutWin, text=helpTxt, font=('宋体', 11), justify='left')
+        helpLabel = tk.Label(aboutWin, text=helpTxt, font=('微软雅黑', 11), justify='left')
         helpLabel.pack(anchor='w',padx=50)
-        tk.Label(aboutWin, text='Copyright © 2020-2021 永仙. All rights reserved.', font=('黑体', 10)).pack(anchor='s', pady=20)
+        tk.Label(aboutWin, text='Copyright © 2020-2021 SiWei Du. All rights reserved.', font=('黑体', 10)).pack(anchor='s', pady=20)
         aboutWin.mainloop()
 
     # 通过cmd获取路径
     def splitPath(self, cmd):
         path = os.popen(cmd).read()
+        if path.find('\\')==-1:
+            messagebox.showerror('错误', '未找到tessractOCR目录！请确认是否安装或配置环境变量！官方下载地址：https://sourceforge.net/projects/tesseract-ocr/')
+            self.master.destroy()
         tmp = path.split('\\')
         tmp.pop()
         path = '\\'.join(tmp)
