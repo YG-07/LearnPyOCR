@@ -1,4 +1,4 @@
-#-*- coding:utf-8 -*-
+﻿#-*- coding:utf-8 -*-
 
 import os
 import shutil
@@ -19,6 +19,7 @@ from PIL.ImageGrab import grab
 
 from json import load, dumps
 from win32api import GetSystemMetrics
+import windnd
 
 
 class Application(Frame):
@@ -34,6 +35,12 @@ class Application(Frame):
         self.master.update()
         print('当前窗口1：', self.master.winfo_width(), 'x', self.master.winfo_height())
         self.createWidget()
+        windnd.hook_dropfiles(self.master, func=self.dragFile)
+
+    def dragFile(self, files):
+        print(files)
+        self.fpath.set(files[0].decode('utf-8'))
+        self.start()
 
     # 一、创建静态数据
     def createState(self):
@@ -57,7 +64,7 @@ class Application(Frame):
         self.pytessUrl = 'https://pypi.org/project/pytesseract/'
         # (未使用)语言包介绍： https://tesseract-ocr.github.io/tessdoc/Data-Files
         # 4.爬虫相关路径
-        self.driver = PhantomJS(executable_path='./phantomjs.exe')
+        self.driver = PhantomJS(executable_path='./data/phantomjs.exe')
 
         # 二、动态数据
         # 1.控制面板的参数
@@ -80,6 +87,8 @@ class Application(Frame):
         self.stat.set('欢迎使用！当前未打开文件')
         # 5.设置当前ocr变量
         self.ocr = StringVar()
+        # 6.设置文件路径变量
+        self.fpath = StringVar()
 
         # 三、计算后的数据
         # 1.tessOCR相关目录
@@ -89,7 +98,7 @@ class Application(Frame):
 
         # 2.获取所有语言包名对照变量allOcr(可以手动修改json,或提供程序添加语言包)
         self.ocrFiles = self.findFile()
-        with open('MyOcr.json', 'r', encoding='utf-8') as f:
+        with open('./data/MyOcr.json', 'r', encoding='utf-8') as f:
             self.allOcr = load(f)
         print(self.allOcr)
 
@@ -202,7 +211,7 @@ class Application(Frame):
         self.showBtn0 = Button(self.top_frame, width=4, text='展开', font=self.f2)
         self.showBtn0.pack(side='left', padx=2)
         Label(self.top_frame, text='图片路径:', font=self.f2).pack(side='left', padx=2, pady=30)
-        self.pathEntry = Entry(self.top_frame, width=40, font=('黑体', 11))
+        self.pathEntry = Entry(self.top_frame, width=40, textvariable=self.fpath, font=('黑体', 11))
         self.pathEntry.pack(side='left', padx=2)
         self.startBtn = Button(self.top_frame, width=10, text='导入并识别', font=self.f2)
         self.startBtn.pack(side='left', padx=5)
@@ -274,6 +283,7 @@ class Application(Frame):
         self.editImgBtn.bind('<Button-1>', self.editFile)
         self.resetBtn.bind('<Button-1>', self.resetApp)
         self.reStartBtn.bind('<Button-1>', self.startRead)
+        self.pathEntry.bind('<KeyPress-Return>', self.start)
 
         # 全局监听快捷键
         # 1.[文件]菜单
@@ -306,7 +316,7 @@ class Application(Frame):
         self.T2.bind('<Control-minus>', lambda event: self.chgFont(event,False))
 
     # 三、事件和函数
-    # ***********注释规则：[函数类别序号].[函数序号]-[累加函数个数]***********
+    # ***********注释规则：[函数类别序号].[函数序号(字母表示封装函数)]-[累加函数个数]***********
     # 1.面板切换操作
     # 1.1-1.分割主面板pw
     def chgPw(self, event=None):
@@ -363,6 +373,12 @@ class Application(Frame):
     # 2.面板1事件
     # 2.1-3.[开始识别]按钮的事件
     def start(self, event=None, tit='文件'):
+        if self.pwFlag or self.p2Flag:
+            if messagebox.askquestion('提示', '是否重置软件?')=='no':
+                return
+            else:
+                self.resetApp()
+
         if tit=='图片':
             ftype=[('JPG文件', '.jpg'), ('PNG文件', '.png'), ('BMP文件', '.bmp'), ('GIF文件', '.gif'),('所有文件', '*.*')]
         elif tit=='文本':
@@ -370,14 +386,14 @@ class Application(Frame):
         else:
             ftype = [('图片/文本文件', '*.*')]
 
-        if self.pwFlag or self.p2Flag:
-            if messagebox.askquestion('提示', '是否重置软件?')=='no':
-                return
-            else:
-                self.resetApp()
-        path=askopenfilename(title='导入'+tit, filetypes=ftype)
+        if self.fpath.get()=='':
+            path=askopenfilename(title='导入'+tit, filetypes=ftype)
+        else:
+            path=self.fpath.get().replace('\n','')
+            print(path, len(path))
         if path:
             self.resetApp()
+            self.fpath.set(path)
             self.importFile = path
             (dir,file)=os.path.split(path)
             (filename,extension)=os.path.splitext(file)
@@ -403,8 +419,12 @@ class Application(Frame):
         if self.importFile==None:
             return
         elif self.importFile[-3:]=='txt':
-            with open(self.importFile, 'r') as f:
-                text = f.read()
+            try:
+                with open(self.importFile, 'r') as f:
+                    text = f.read()
+            except UnicodeDecodeError:
+                with open(self.importFile, 'r', encoding='utf-8') as f:
+                    text = f.read()
             self.T1.delete(1.0, END)
             self.T1.insert(1.0, text)
         else:
@@ -416,6 +436,7 @@ class Application(Frame):
 
     # 2.4-6.改变状态
     def chgState(self, event=None, type='文本'):
+        self.fpath.set(self.importFile)
         self.stat.set('当前打开[{0}]文件：'.format(type) + self.importFile)
         self.importType=type
         self.editImgBtn['text'] = '编辑'+type
@@ -472,6 +493,7 @@ class Application(Frame):
         if self.pwFlag:
             self.T1.delete(1.0, END)
             self.chgPw()
+        self.fpath.set('')
         self.importFile = None
         self.importType = None
 
@@ -579,9 +601,9 @@ class Application(Frame):
     def grabSave(self, type):
         self.gWin.destroy()
         self.imgTmp = grab(bbox=(self.r[0], self.r[1], self.r[2], self.r[3]))
-        self.imgTmp.save('grab.jpg')
+        self.imgTmp.save('./data/grab.jpg')
         if type == 'btn':
-            self.importFile = os.getcwd() + '\\grab.jpg'
+            self.importFile = os.getcwd() + '\\data\\grab.jpg'
             print(self.importFile)
             self.chgState(None, '图片')
 
@@ -625,7 +647,7 @@ class Application(Frame):
         print(url)
         self.driver.get(url)
         sleep(0.6)
-        self.driver.save_screenshot("trans.png")
+        # self.driver.save_screenshot("trans.png")
         finds = self.driver.find_elements_by_xpath('//p[@class="ordinary-output target-output clearfix"]')
         word = ''
         for item in finds:
@@ -653,7 +675,7 @@ class Application(Frame):
         for item in finds:
             word += item.text + '\n'
         sleep(0.5)
-        self.driver.save_screenshot("trans.png")
+        # self.driver.save_screenshot("trans.png")
         self.T2.delete(1.0, END)
         self.T2.insert(1.0, word)
 
@@ -678,7 +700,7 @@ class Application(Frame):
         self.aliasname = self.aliasname.replace(' ', '')
         if self.aliasname:
             self.allOcr[filename] = self.aliasname
-            with open('./MyOcr.json', 'w', encoding='utf-8') as f:
+            with open('./data/MyOcr.json', 'w', encoding='utf-8') as f:
                 ocrStr = dumps(self.allOcr).encode('utf-8').decode('unicode-escape')
                 print(ocrStr)
                 f.write(ocrStr)
@@ -732,7 +754,7 @@ class Application(Frame):
         l = Label(aboutWin, text='Python的图片文字识别的Tkinter程序', font=('微软雅黑',16))
         l.pack(anchor='w',padx=20, pady=10)
         ttk.Separator(aboutWin).pack(fill='x', padx=5)
-        with open('help.txt','r', encoding='utf-8') as f:
+        with open('./data/help.txt','r', encoding='utf-8') as f:
             ftxt = f.read()
         txt=ftxt.split('---\n')
         print(txt)

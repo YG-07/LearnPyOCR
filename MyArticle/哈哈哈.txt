@@ -5,3 +5,4 @@ seLf .imgTmp.save('grab.jpg')
 
 
 
+pyinstaller --hidden-import=pkg_resources -F main.py
